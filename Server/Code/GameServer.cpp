@@ -175,6 +175,15 @@ void GameServer::ProcessNetworkQueue()
 	while( numberOfBytesInNetworkQueue > 0 )
 	{
 		int receiveResult = m_serverSocket.ReceiveBuffer( ( char* )&receivedPacket, sizeof( MainPacketType ), receivedIPAddress, receivedPort );
+		if( receiveResult < 0 )
+		{
+			int errorCode = WSAGetLastError();
+			if( errorCode = 10035 )
+				break; //The queue is empty
+
+			printf( "Packet Receiving error! Error Code: %i", errorCode );
+			exit( -14 );
+		}
 
 		receivedClient = FindClientByAddress( receivedIPAddress, receivedPort );
 		if( receivedClient == nullptr )
