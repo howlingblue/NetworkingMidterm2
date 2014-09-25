@@ -13,7 +13,11 @@ void Player::Render() const
 	glTranslatef( m_clientPosition.x, m_clientPosition.y, 0.f );
 	glRotatef( m_clientOrientationDegrees, 0.f, 0.f, 1.f ); //FIX: rotation is incorrect. Bad reference frame?
 
-	glColor4f( (float)m_color.r / 255.f, (float)m_color.g / 255.f, (float)m_color.b / 255.f, (float)m_color.a / 255.f );
+	//glColor4f( (float)m_color.r / 255.f, (float)m_color.g / 255.f, (float)m_color.b / 255.f, (float)m_color.a / 255.f );
+	if( m_isIt )
+		glColor4f( 1.f, 0.f, 0.f, 1.f );
+	else
+		glColor4f( 1.f, 1.f, 1.f, 1.f );
 
 	glBegin( GL_QUADS );
 	{

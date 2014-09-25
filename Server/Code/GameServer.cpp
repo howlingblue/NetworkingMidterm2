@@ -47,7 +47,17 @@ void GameServer::Update( float deltaSeconds )
 //-----------------------------------------------------------------------------------------------
 ClientInfo* GameServer::AddNewClient( const std::string& ipAddress, unsigned short portNumber )
 {
-	return nullptr;
+	m_clientList.push_back( new ClientInfo() );
+	ClientInfo* newClient = m_clientList.back();
+
+	newClient->id = m_nextClientID;
+	++m_nextClientID;
+
+	newClient->ipAddress = ipAddress;
+	newClient->portNumber = portNumber;
+	newClient->currentPacketNumber = 1;
+	newClient->secondsSinceLastReceivedPacket = 0.f;
+	return newClient;
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -105,19 +115,27 @@ void GameServer::ProcessNetworkQueue()
 	MainPacketType receivedPacket;
 	ClientInfo* receivedClient = nullptr;
 
-	MainPacketType testPacket;
-	testPacket.clientID = 0;
-	testPacket.type = TYPE_Test;
-	testPacket.number = 0;
-	testPacket.timestamp = GetCurrentTimeSeconds();
-
 	int numberOfBytesInNetworkQueue = m_serverSocket.GetNumberOfBytesInNetworkQueue();
 	while( numberOfBytesInNetworkQueue > 0 )
 	{
 		int receiveResult = m_serverSocket.ReceiveBuffer( ( char* )&receivedPacket, sizeof( MainPacketType ), receivedIPAddress, receivedPort );
 
-		printf( "Received packet from %s:%i. Responding with test packet...\n", receivedIPAddress.c_str(), receivedPort );
-		m_serverSocket.SendBuffer( (char*)&testPacket, sizeof( MainPacketType ), receivedIPAddress, receivedPort ); 
+		receivedClient = FindClientByAddress( receivedIPAddress, receivedPort );
+		if( receivedClient == nullptr )
+		{
+			if( receivedPacket.type != TYPE_Join )
+			{
+				printf( "WARNING: Received non-join packet from an unknown client at %s:%i.n", receivedIPAddress.c_str(), receivedPort );
+				continue;
+			}
+
+			receivedClient = AddNewClient( receivedIPAddress, receivedPort );
+			ResetClient( receivedClient );
+			printf( "Received join packet from %s:%i. Added as client number %i.\n", receivedIPAddress.c_str(), receivedPort, receivedClient->id );
+			continue;
+		}
+		
+		printf( "Received packet from %s:%i.\n", receivedIPAddress.c_str(), receivedPort );
 
 		numberOfBytesInNetworkQueue = m_serverSocket.GetNumberOfBytesInNetworkQueue();
 	}
@@ -141,6 +159,32 @@ void GameServer::ResendUnacknowledgedPacketsToClient( ClientInfo* client )
 //-----------------------------------------------------------------------------------------------
 void GameServer::ResetClient( ClientInfo* client )
 {
+	if( m_itPlayerID == 0 ) //it should only be zero if this is our first ever player
+	{
+		m_itPlayerID = client->id;
+	}
+
+	client->xPosition = GetRandomFloatBetweenZeroandOne() * 600.f;
+	if( client->id == m_itPlayerID )
+		client->yPosition = 0;
+	else
+		client->yPosition = GetRandomFloatBetweenZeroandOne() * 600.f;
+	client->xVelocity = 0.f;
+	client->yVelocity = 0.f;
+	client->orientationDegrees = 0.f;
+
+	MainPacketType resetPacket;
+	resetPacket.type = TYPE_Reset;
+	resetPacket.clientID = client->id;
+	resetPacket.number = client->currentPacketNumber;
+	++client->currentPacketNumber;
+	resetPacket.data.reset.itPlayerID = m_itPlayerID;
+	resetPacket.data.reset.xPosition = client->xPosition;
+	resetPacket.data.reset.yPosition = client->yPosition;
+	resetPacket.data.reset.xVelocity = client->xVelocity;
+	resetPacket.data.reset.yVelocity = client->yVelocity;
+	resetPacket.data.reset.orientationDegrees = client->orientationDegrees;
+	SendPacketToClient( resetPacket, client );
 }
 
 //-----------------------------------------------------------------------------------------------

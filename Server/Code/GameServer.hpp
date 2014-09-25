@@ -16,6 +16,16 @@ struct ClientInfo
 	unsigned char id;
 	std::string ipAddress;
 	unsigned short portNumber;
+
+	unsigned int currentPacketNumber;
+	std::set< PacketType, PacketComparer > unacknowledgedPackets;
+	float secondsSinceLastReceivedPacket;
+
+	float xPosition;
+	float yPosition;
+	float xVelocity;
+	float yVelocity;
+	float orientationDegrees;
 };
 
 //-----------------------------------------------------------------------------------------------
@@ -26,7 +36,10 @@ class GameServer
 	static const float SECONDS_SINCE_LAST_CLIENT_PRINTOUT;
 
 public:
-	GameServer() { }
+	GameServer()
+		: m_nextClientID( 1 )
+		, m_itPlayerID( 0 )
+	{ }
 	~GameServer() { }
 
 	void Initialize( const std::string& portNumber );
@@ -49,6 +62,7 @@ private:
 	Network::UDPSocket m_serverSocket;
 	unsigned int m_nextClientID;
 	std::vector< ClientInfo* > m_clientList;
+	unsigned short m_itPlayerID;
 };
 
 #endif //INCLUDED_GAME_SERVER_HPP

@@ -20,8 +20,10 @@ public:
 	const Vector2& GetCurrentPosition() { return m_clientPosition; }
 	const Vector2& GetCurrentVelocity() { return m_clientVelocity; }
 	unsigned short GetID() const { return m_playerID; }
+	bool IsIt() const { return m_isIt; }
 
 	void SetID( unsigned short newID ) { m_playerID = newID; }
+	void SetItStatus( bool itStatus ) { m_isIt = itStatus; }
 
 	void SetClientPosition( float x, float y );
 	void SetClientVelocity( float vx, float vy );
@@ -33,6 +35,7 @@ public:
 
 private:
 	unsigned short m_playerID;
+	bool m_isIt;
 	Color m_color;
 	Vector2 m_clientPosition;
 	Vector2 m_clientVelocity;
@@ -48,6 +51,7 @@ private:
 //-----------------------------------------------------------------------------------------------
 inline Player::Player()
 	: m_playerID( 0 )
+	, m_isIt( false )
 	, m_clientOrientationDegrees( 0 )
 	, m_serverOrientationDegrees( 0 )
 	, m_color( (unsigned char)0, 0, 0, 255 )

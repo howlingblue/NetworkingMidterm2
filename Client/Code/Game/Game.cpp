@@ -134,8 +134,17 @@ Player* Game::FindPlayerByID( unsigned short playerID )
 }
 
 //-----------------------------------------------------------------------------------------------
-void Game::HandleIncomingPacket( const MainPacketType& /*packet*/ )
+void Game::HandleIncomingPacket( const MainPacketType& packet )
 {
+	switch( packet.type )
+	{
+	case TYPE_Reset:
+		ResetGame( packet );
+		m_currentState = STATE_InGame;
+		break;
+	default:
+		break;
+	}
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -162,21 +171,82 @@ void Game::ProcessNetworkQueue()
 		else
 		{
 			printf( "Received packet from %s:%i.\n", receivedIPAddress.c_str(), receivedPort );
-			HandleIncomingPacket( receivedPacket );
+			m_packetQueue.insert( receivedPacket );
 		}
 
 		numberOfBytesInNetworkQueue = m_outputSocket.GetNumberOfBytesInNetworkQueue();
 	}
 }
+//-----------------------------------------------------------------------------------------------
+void Game::ProcessPacketQueue()
+{
+	std::set< MainPacketType, PacketComparer >::iterator packet;
+	for( packet = m_packetQueue.begin(); packet != m_packetQueue.end(); ++packet )
+	{
+		if( packet->IsGuaranteed() )
+		{
+			if( packet->number <= m_lastReceivedGuaranteedPacketNumber )
+				continue;
+		}
+		else
+		{
+			if( packet->number <= m_lastReceivedPacketNumber )
+				continue;
+		}
+
+		HandleIncomingPacket( *packet );
+		
+		if( packet->IsGuaranteed() )
+		{
+			//ack it
+			m_lastReceivedPacketNumber = packet->number;
+
+			if( m_lastReceivedGuaranteedPacketNumber > m_lastReceivedPacketNumber )
+				m_lastReceivedPacketNumber = m_lastReceivedGuaranteedPacketNumber;
+		}
+		else
+		{
+			m_lastReceivedPacketNumber = packet->number;
+		}
+	}
+}
 
 //-----------------------------------------------------------------------------------------------
-void Game::ResetGame( const MainPacketType& /*resetPacket*/ )
+void Game::ResetGame( const MainPacketType& resetPacket )
 {
+	for( unsigned int i = 0; i < m_activePlayers.size(); ++i )
+	{
+		delete m_activePlayers[ i ];
+	}
+	m_activePlayers.clear();
+
+
+	m_activePlayers.push_back( new Player() );
+	m_localPlayer = m_activePlayers.back();
+	m_localPlayer->SetID( resetPacket.clientID );
+
+	m_localPlayer->SetClientPosition( resetPacket.data.reset.xPosition, resetPacket.data.reset.yPosition );
+	m_localPlayer->SetServerPosition( resetPacket.data.reset.xPosition, resetPacket.data.reset.yPosition );
+	m_localPlayer->SetClientVelocity( resetPacket.data.reset.xVelocity, resetPacket.data.reset.yVelocity );
+	m_localPlayer->SetServerVelocity( resetPacket.data.reset.xVelocity, resetPacket.data.reset.yVelocity );
+	m_localPlayer->SetClientOrientation( resetPacket.data.reset.orientationDegrees );
+	m_localPlayer->SetServerOrientation( resetPacket.data.reset.orientationDegrees );
+
+	if( m_localPlayer->GetID() == resetPacket.data.reset.itPlayerID )
+		m_localPlayer->SetItStatus( true );
+	else
+		m_localPlayer->SetItStatus( false );
+
 }
 
 //-----------------------------------------------------------------------------------------------
 void Game::SendJoinRequestToServer()
 {
+	MainPacketType joinPacket;
+	joinPacket.type = TYPE_Join;
+	joinPacket.clientID = 0;
+	joinPacket.number = 0;
+	SendPacketToServer( joinPacket );
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -233,6 +303,8 @@ Game::Game( unsigned int screenWidth, unsigned int screenHeight )
 	, m_isKeyDown( 256, false )
 	, m_tankInputs( 1 )
 	, m_currentState( STATE_WaitingForStart )
+	, m_lastReceivedGuaranteedPacketNumber( 0 )
+	, m_lastReceivedPacketNumber( 0 )
 {
 	m_controllers.push_back( Xbox::Controller::ONE );
 }
@@ -293,11 +365,29 @@ void Game::Update( double timeSpentLastFrameSeconds )
 
 	ProcessNetworkQueue();
 
-	HandleInput( deltaSeconds );
-	SendUpdatedPositionsToServer( deltaSeconds );
-	for( unsigned int i = 0; i < m_activePlayers.size(); ++i )
+	if( m_currentState == STATE_WaitingForStart )
 	{
-		m_activePlayers[ i ]->Update( deltaSeconds );
+		ProcessPacketQueue();
+
+		if( m_currentState == STATE_WaitingForStart )
+		{
+			printf( "Sending join packet to server @%s:%i.\n", m_serverAddress.c_str(), m_serverPort );
+			SendJoinRequestToServer();
+		}
+	}
+	else if( m_currentState == STATE_InGame )
+	{
+		ProcessPacketQueue();
+		HandleInput( deltaSeconds );
+		SendUpdatedPositionsToServer( deltaSeconds );
+		for( unsigned int i = 0; i < m_activePlayers.size(); ++i )
+		{
+			m_activePlayers[ i ]->Update( deltaSeconds );
+		}
+	}
+	else
+	{
+
 	}
 }
 #pragma endregion

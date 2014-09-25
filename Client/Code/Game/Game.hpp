@@ -3,6 +3,7 @@
 
 //-----------------------------------------------------------------------------------------------
 #include <map>
+#include <set>
 #include <vector>
 #include "../../../Common/Engine/Color.hpp"
 #include "../../../Common/Engine/Texture.hpp"
@@ -23,6 +24,7 @@ class Game
 	typedef unsigned char State;
 	static const State STATE_WaitingForStart = 0;
 	static const State STATE_InGame = 1;
+	static const State STATE_WaitingForRestart = 2;
 
 	static const float		 WORLD_WIDTH;
 	static const float		 WORLD_HEIGHT;
@@ -39,6 +41,9 @@ class Game
 	std::string				m_serverAddress;
 	unsigned short			m_serverPort;
 	Network::UDPSocket		m_outputSocket;
+	std::set< MainPacketType, PacketComparer > m_packetQueue;
+	unsigned int m_lastReceivedPacketNumber;
+	unsigned int m_lastReceivedGuaranteedPacketNumber;
 
 	State					m_currentState;
 	std::vector< Player* >	m_activePlayers;
@@ -54,6 +59,7 @@ class Game
 	Player* FindPlayerByID( unsigned short playerID );
 	void HandleIncomingPacket( const MainPacketType& packet );
 	void ProcessNetworkQueue();
+	void ProcessPacketQueue();
 	void ResetGame( const MainPacketType& resetPacket );
 	void SendJoinRequestToServer();
 	void SendPacketToServer( const MainPacketType& packet );
