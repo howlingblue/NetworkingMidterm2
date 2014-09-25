@@ -31,6 +31,19 @@ void GameServer::Update( float deltaSeconds )
 	UpdateGameState();
 	BroadcastGameStateToClients();
 
+	//Remove all clients that have timed out
+	for( unsigned int i = 0; i < m_clientList.size(); ++i )
+	{
+		ClientInfo*& client = m_clientList[ i ];
+		client->secondsSinceLastReceivedPacket += deltaSeconds;
+		if( client->secondsSinceLastReceivedPacket > SECONDS_BEFORE_CLIENT_TIMES_OUT )
+		{
+			printf( "Removed client %i @%s:%i for timing out.\n", client->id, client->ipAddress.c_str(), client->portNumber );
+			m_clientList.erase( m_clientList.begin() + i );
+			--i;
+		}
+	}
+
 	//Print all connected Clients
 	static float secondsSinceClientsLastPrinted = 0.f;
 	if( secondsSinceClientsLastPrinted > SECONDS_SINCE_LAST_CLIENT_PRINTOUT )
@@ -105,6 +118,15 @@ void GameServer::PrintConnectedClients() const
 		printf( "No clients currently connected.\n\n" );
 		return;
 	}
+
+	printf( "Connected Clients:\n\n" );
+	for( unsigned int i = 0; i < m_clientList.size(); ++i )
+	{
+		const ClientInfo* const& client = m_clientList[ i ];
+		printf( "\t Client %i: @%s:%i, Last Packet %f seconds ago.\n", client->id, client->ipAddress.c_str(), 
+												client->portNumber, client->secondsSinceLastReceivedPacket );
+	}
+	printf( "\n" );
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -136,7 +158,7 @@ void GameServer::ProcessNetworkQueue()
 		}
 		
 		printf( "Received packet from %s:%i.\n", receivedIPAddress.c_str(), receivedPort );
-
+		receivedClient->secondsSinceLastReceivedPacket = 0.f;
 		numberOfBytesInNetworkQueue = m_serverSocket.GetNumberOfBytesInNetworkQueue();
 	}
 }
