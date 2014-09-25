@@ -44,6 +44,18 @@ void GameServer::Update( float deltaSeconds )
 		}
 	}
 
+	//Resend all unacknowledged packets
+	for( unsigned int i = 0; i < m_clientList.size(); ++i )
+	{
+		ClientInfo*& client = m_clientList[ i ];
+
+		std::set< MainPacketType, PacketComparer >::iterator unackedPacket;
+		for( unackedPacket = client->unacknowledgedPackets.begin(); unackedPacket != client->unacknowledgedPackets.end(); ++unackedPacket )
+		{
+			SendPacketToClient( *unackedPacket, client );
+		}
+	}
+
 	//Print all connected Clients
 	static float secondsSinceClientsLastPrinted = 0.f;
 	if( secondsSinceClientsLastPrinted > SECONDS_SINCE_LAST_CLIENT_PRINTOUT )
@@ -145,8 +157,8 @@ void GameServer::PrintConnectedClients() const
 	for( unsigned int i = 0; i < m_clientList.size(); ++i )
 	{
 		const ClientInfo* const& client = m_clientList[ i ];
-		printf( "\t Client %i: @%s:%i, Last Packet %f seconds ago.\n", client->id, client->ipAddress.c_str(), 
-												client->portNumber, client->secondsSinceLastReceivedPacket );
+		printf( "\t Client %i: @%s:%i, Last packet %f seconds ago, %i unacked packets\n", client->id, client->ipAddress.c_str(), 
+												client->portNumber, client->secondsSinceLastReceivedPacket, client->unacknowledgedPackets.size() );
 	}
 	printf( "\n" );
 }
@@ -182,6 +194,9 @@ void GameServer::ProcessNetworkQueue()
 		printf( "Received packet from %s:%i.\n", receivedIPAddress.c_str(), receivedPort );
 		switch( receivedPacket.type )
 		{
+		case TYPE_Acknowledgement:
+			RemoveAcknowledgedPacketFromClientQueue( receivedPacket );
+			break;
 		case TYPE_Update:
 			ReceiveUpdateFromClient( receivedPacket, receivedClient );
 			break;
@@ -207,6 +222,20 @@ void GameServer::ReceiveUpdateFromClient( const MainPacketType& updatePacket, Cl
 //-----------------------------------------------------------------------------------------------
 void GameServer::RemoveAcknowledgedPacketFromClientQueue( const MainPacketType& ackPacket )
 {
+	ClientInfo* acknowledgingClient = FindClientByID( ackPacket.clientID );
+
+	std::set< MainPacketType, PacketComparer >::iterator unackedPacket;
+	for( unackedPacket = acknowledgingClient->unacknowledgedPackets.begin(); 
+		 unackedPacket != acknowledgingClient->unacknowledgedPackets.end(); 
+		 ++unackedPacket )
+	{
+		if( unackedPacket->number == ackPacket.data.acknowledged.packetNumber )
+		{
+			printf( "Removing an acknowledged packet from client ID %i.\n", acknowledgingClient->id );
+			acknowledgingClient->unacknowledgedPackets.erase( unackedPacket );
+			return;
+		}
+	}
 }
 
 //-----------------------------------------------------------------------------------------------

@@ -217,7 +217,7 @@ void Game::ProcessPacketQueue()
 		
 		if( packet->IsGuaranteed() )
 		{
-			//AcknowledgePacket( *packet )
+			AcknowledgePacket( *packet );
 			m_lastReceivedPacketNumber = packet->number;
 
 			if( m_lastReceivedGuaranteedPacketNumber > m_lastReceivedPacketNumber )
