@@ -1,0 +1,2 @@
+#define ABSTRACT
+#define STATIC 

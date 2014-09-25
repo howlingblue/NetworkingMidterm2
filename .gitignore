@@ -1,0 +1,26 @@
+#executables and libraries
+*.exe
+*.dll
+*.lib
+
+#visual studio files
+*.ilk
+*.pdb
+*.idb
+*.sln
+*.suo
+*.vcxproj
+*.filters
+*.user
+*.cache
+
+#object and log files
+*.obj
+*.log
+*.tlog
+*.lastbuildstate
+*.manifest
+
+#build directory
+Build/
+Temp/Debug/TestClient.unsuccessfulbuild
