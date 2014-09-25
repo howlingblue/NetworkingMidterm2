@@ -45,6 +45,7 @@ class Game
 	unsigned int m_lastReceivedPacketNumber;
 	unsigned int m_lastReceivedGuaranteedPacketNumber;
 
+	unsigned short			m_itPlayerID;
 	State					m_currentState;
 	std::vector< Player* >	m_activePlayers;
 	Player*					m_localPlayer;
@@ -63,6 +64,7 @@ class Game
 	void ResetGame( const MainPacketType& resetPacket );
 	void SendJoinRequestToServer();
 	void SendPacketToServer( const MainPacketType& packet );
+	void SendPlayerTouchedIt( Player* touchingPlayer, Player* itPlayer );
 	void SendUpdatedPositionsToServer( float deltaSeconds );
 	void UpdatePlayerFromPacket( const MainPacketType& packet );
 

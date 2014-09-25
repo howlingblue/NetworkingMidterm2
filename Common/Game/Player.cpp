@@ -35,9 +35,13 @@ void Player::Render() const
 }
 
 //-----------------------------------------------------------------------------------------------
-void Player::Update( float /*deltaSeconds*/ )
+void Player::Update( float deltaSeconds )
 {
-	m_clientPosition += 0.2f * ( m_serverPosition - m_clientPosition );
+	//Janky Dead Reckoning
+	static const float GUESSTIMATED_LATENCY = .001f;
+	Vector2 goalPosition = m_serverPosition + ( m_serverVelocity * GUESSTIMATED_LATENCY );
+
+	m_clientPosition += 0.2f * ( goalPosition - m_clientPosition );
 	m_clientVelocity += 0.2f * ( m_serverVelocity - m_clientVelocity );
 	m_clientOrientationDegrees += 0.2f * ( m_serverOrientationDegrees - m_clientOrientationDegrees );
 }

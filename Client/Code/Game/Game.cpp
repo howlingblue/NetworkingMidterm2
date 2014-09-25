@@ -111,8 +111,16 @@ float Game::TransformKeyInputIntoAngle( bool upKeyIsPressed, bool rightKeyIsPres
 
 #pragma region Game Helper Functions
 //-----------------------------------------------------------------------------------------------
-void Game::AcknowledgePacket(  const MainPacketType& /*packet*/ )
+void Game::AcknowledgePacket(  const MainPacketType& packet )
 {
+	MainPacketType ackPacket;
+	ackPacket.type = TYPE_Acknowledgement;
+	ackPacket.clientID = m_localPlayer->GetID();
+	ackPacket.number = 0;
+
+	ackPacket.data.acknowledged.clientID = packet.clientID;
+	ackPacket.data.acknowledged.packetNumber = packet.number;
+	SendPacketToServer( ackPacket );
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -141,6 +149,9 @@ void Game::HandleIncomingPacket( const MainPacketType& packet )
 	case TYPE_Reset:
 		ResetGame( packet );
 		m_currentState = STATE_InGame;
+		break;
+	case TYPE_Update:
+		UpdatePlayerFromPacket( packet );
 		break;
 	default:
 		break;
@@ -183,6 +194,14 @@ void Game::ProcessPacketQueue()
 	std::set< MainPacketType, PacketComparer >::iterator packet;
 	for( packet = m_packetQueue.begin(); packet != m_packetQueue.end(); ++packet )
 	{
+		if( m_currentState == STATE_WaitingForStart || m_currentState == STATE_WaitingForRestart )
+		{
+			if( packet->type != TYPE_Reset )
+			{
+				printf( "WARNING: Received non-reset packet from server when out of game!!\n" );
+				continue;
+			}
+		}
 		if( packet->IsGuaranteed() )
 		{
 			if( packet->number <= m_lastReceivedGuaranteedPacketNumber )
@@ -198,7 +217,7 @@ void Game::ProcessPacketQueue()
 		
 		if( packet->IsGuaranteed() )
 		{
-			//ack it
+			//AcknowledgePacket( *packet )
 			m_lastReceivedPacketNumber = packet->number;
 
 			if( m_lastReceivedGuaranteedPacketNumber > m_lastReceivedPacketNumber )
@@ -209,6 +228,7 @@ void Game::ProcessPacketQueue()
 			m_lastReceivedPacketNumber = packet->number;
 		}
 	}
+	m_packetQueue.clear();
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -220,6 +240,7 @@ void Game::ResetGame( const MainPacketType& resetPacket )
 	}
 	m_activePlayers.clear();
 
+	m_itPlayerID = resetPacket.data.reset.itPlayerID;
 
 	m_activePlayers.push_back( new Player() );
 	m_localPlayer = m_activePlayers.back();
@@ -232,7 +253,7 @@ void Game::ResetGame( const MainPacketType& resetPacket )
 	m_localPlayer->SetClientOrientation( resetPacket.data.reset.orientationDegrees );
 	m_localPlayer->SetServerOrientation( resetPacket.data.reset.orientationDegrees );
 
-	if( m_localPlayer->GetID() == resetPacket.data.reset.itPlayerID )
+	if( m_localPlayer->GetID() == m_itPlayerID )
 		m_localPlayer->SetItStatus( true );
 	else
 		m_localPlayer->SetItStatus( false );
@@ -264,25 +285,63 @@ void Game::SendPacketToServer( const MainPacketType& packet )
 }
 
 //-----------------------------------------------------------------------------------------------
+void Game::SendPlayerTouchedIt( Player* touchingPlayer, Player* itPlayer )
+{
+	MainPacketType touchPacket;
+	touchPacket.type = TYPE_Touch;
+	touchPacket.number = 0;
+	touchPacket.clientID = itPlayer->GetID();
+	touchPacket.timestamp = GetCurrentTimeSeconds();
+
+	touchPacket.data.touch.instigatorID = touchingPlayer->GetID();
+	touchPacket.data.touch.receiverID = itPlayer->GetID();
+	SendPacketToServer( touchPacket );
+}
+
+//-----------------------------------------------------------------------------------------------
 void Game::SendUpdatedPositionsToServer( float deltaSeconds )
 {
 	Vector2 currentPlayerPosition;
-	MainPacketType testPacket;
-	testPacket.type = TYPE_Test;
-	testPacket.number = 0;
-	testPacket.clientID = 0;
-	testPacket.timestamp;
+	MainPacketType updatePacket;
+	updatePacket.type = TYPE_Update;
+	updatePacket.number = 0;
+	updatePacket.clientID = m_localPlayer->GetID();
+	updatePacket.timestamp = GetCurrentTimeSeconds();
 
 	if( m_tankInputs[ 0 ].tankMovementMagnitude > 0.f )
 	{
-		printf( "Sent test movement packet to server.\n" );
-		SendPacketToServer( testPacket );
+		float orientationRadians = ConvertDegreesToRadians( m_tankInputs[ 0 ].tankMovementHeading );
+		Vector2 deltaVelocity( cos( orientationRadians ), -sin( orientationRadians ) );
+		deltaVelocity *= m_tankInputs[ 0 ].tankMovementMagnitude * 10.f;
+
+		if( m_localPlayer->IsIt() )
+			deltaVelocity *= .9f; //It player is slower than the rest.
+
+		Vector2 currentPosition = m_localPlayer->GetCurrentPosition();
+		currentPosition.x += deltaVelocity.x;
+		currentPosition.y += deltaVelocity.y;
+		updatePacket.data.updated.xPosition = currentPosition.x;
+		updatePacket.data.updated.yPosition = currentPosition.y;
+		updatePacket.data.updated.xVelocity = deltaVelocity.x;
+		updatePacket.data.updated.yVelocity = deltaVelocity.y;
+		updatePacket.data.updated.orientationDegrees = m_tankInputs[ 0 ].tankMovementHeading;
+
+		SendPacketToServer( updatePacket );
 		m_secondsSinceLastSentUpdate = 0.f;
 	}
 	else if( m_secondsSinceLastSentUpdate > MAX_SECONDS_BETWEEN_PACKET_SENDS )
 	{
-		printf( "Sent test keep alive packet to server.\n" );
-		SendPacketToServer( testPacket );
+		Vector2 currentPosition = m_localPlayer->GetCurrentPosition();
+		updatePacket.data.updated.xPosition = currentPosition.x;
+		updatePacket.data.updated.yPosition = currentPosition.y;
+		Vector2 currentVelocity = m_localPlayer->GetCurrentVelocity();
+		updatePacket.data.updated.xVelocity = currentVelocity.x;
+		updatePacket.data.updated.yVelocity = currentVelocity.y;
+
+		float currentOrientation = m_localPlayer->GetCurrentOrientation();
+		updatePacket.data.updated.orientationDegrees = currentOrientation;
+
+		SendPacketToServer( updatePacket );
 		m_secondsSinceLastSentUpdate = 0.f;
 	}
 
@@ -290,8 +349,31 @@ void Game::SendUpdatedPositionsToServer( float deltaSeconds )
 }
 
 //-----------------------------------------------------------------------------------------------
-void Game::UpdatePlayerFromPacket( const MainPacketType& /*packet*/ )
+void Game::UpdatePlayerFromPacket( const MainPacketType& packet )
 {
+	Player* updatingPlayer = FindPlayerByID( packet.clientID );
+
+	if( updatingPlayer == nullptr )
+	{
+		m_activePlayers.push_back( new Player() );
+		Player* newPlayer = m_activePlayers.back();
+		newPlayer->SetID( packet.clientID );
+		newPlayer->SetClientPosition( packet.data.updated.xPosition, packet.data.updated.yPosition );
+		newPlayer->SetClientVelocity( packet.data.updated.xVelocity, packet.data.updated.yVelocity );
+		newPlayer->SetClientOrientation( packet.data.updated.orientationDegrees );
+
+		if( newPlayer->GetID() == m_itPlayerID )
+			newPlayer->SetItStatus( true );
+		else
+			newPlayer->SetItStatus( false );
+
+		updatingPlayer = newPlayer;
+		printf( "Adding new player: ID:%i", packet.clientID );
+	}
+
+	updatingPlayer->SetServerPosition( packet.data.updated.xPosition, packet.data.updated.yPosition );
+	updatingPlayer->SetServerVelocity( packet.data.updated.xVelocity, packet.data.updated.yVelocity );
+	updatingPlayer->SetServerOrientation( packet.data.updated.orientationDegrees );
 }
 #pragma endregion
 
@@ -383,6 +465,23 @@ void Game::Update( double timeSpentLastFrameSeconds )
 		for( unsigned int i = 0; i < m_activePlayers.size(); ++i )
 		{
 			m_activePlayers[ i ]->Update( deltaSeconds );
+		}
+
+		//check for touches
+		static float TOUCH_DISTANCE = 10.f;
+		if( m_localPlayer->IsIt() )
+		{
+			Vector2 itPlayerPosition = m_localPlayer->GetCurrentPosition();
+
+			for( unsigned int i = 0; i < m_activePlayers.size(); ++i )
+			{
+				if( m_activePlayers[ i ] == m_localPlayer )
+					continue;
+
+				Vector2 vectorFromItToLocalPlayer = itPlayerPosition - m_activePlayers[ i ]->GetCurrentPosition();
+				if( vectorFromItToLocalPlayer.Length() < TOUCH_DISTANCE )
+					SendPlayerTouchedIt( m_activePlayers[ i ], m_localPlayer );
+			}
 		}
 	}
 	else

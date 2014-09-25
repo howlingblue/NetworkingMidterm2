@@ -18,7 +18,7 @@ struct ClientInfo
 	unsigned short portNumber;
 
 	unsigned int currentPacketNumber;
-	std::set< PacketType, PacketComparer > unacknowledgedPackets;
+	std::set< MainPacketType, PacketComparer > unacknowledgedPackets;
 	float secondsSinceLastReceivedPacket;
 
 	float xPosition;
@@ -57,7 +57,7 @@ private:
 	void ResendUnacknowledgedPacketsToClient( ClientInfo* client );
 	void ResetClient( ClientInfo* client );
 	void SendPacketToClient( const MainPacketType& packet, ClientInfo* client );
-	void UpdateGameState();
+	void UpdateGameState( float deltaSeconds );
 
 	Network::UDPSocket m_serverSocket;
 	unsigned int m_nextClientID;

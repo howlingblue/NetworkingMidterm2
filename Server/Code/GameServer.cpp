@@ -28,7 +28,7 @@ void GameServer::Initialize( const std::string& portNumber )
 void GameServer::Update( float deltaSeconds )
 {
 	ProcessNetworkQueue();
-	UpdateGameState();
+	UpdateGameState( deltaSeconds );
 	BroadcastGameStateToClients();
 
 	//Remove all clients that have timed out
@@ -76,6 +76,28 @@ ClientInfo* GameServer::AddNewClient( const std::string& ipAddress, unsigned sho
 //-----------------------------------------------------------------------------------------------
 void GameServer::BroadcastGameStateToClients()
 {
+	for( unsigned int i = 0; i < m_clientList.size(); ++i )
+	{
+		ClientInfo*& broadcastedClient = m_clientList[ i ];
+
+		MainPacketType updatePacket;
+		updatePacket.type = TYPE_Update;
+		updatePacket.clientID = broadcastedClient->id;
+		updatePacket.data.updated.xPosition = broadcastedClient->xPosition;
+		updatePacket.data.updated.yPosition = broadcastedClient->yPosition;
+		updatePacket.data.updated.xVelocity = broadcastedClient->xVelocity;
+		updatePacket.data.updated.yVelocity = broadcastedClient->yVelocity;
+		updatePacket.data.updated.orientationDegrees = broadcastedClient->orientationDegrees;
+
+		for( unsigned int j = 0; j < m_clientList.size(); ++j )
+		{
+			ClientInfo*& receivingClient = m_clientList[ j ];
+
+			updatePacket.number = receivingClient->currentPacketNumber;
+			++receivingClient->currentPacketNumber;
+			SendPacketToClient( updatePacket, receivingClient );
+		}
+	}
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -147,7 +169,7 @@ void GameServer::ProcessNetworkQueue()
 		{
 			if( receivedPacket.type != TYPE_Join )
 			{
-				printf( "WARNING: Received non-join packet from an unknown client at %s:%i.n", receivedIPAddress.c_str(), receivedPort );
+				printf( "WARNING: Received non-join packet from an unknown client at %s:%i.\n", receivedIPAddress.c_str(), receivedPort );
 				continue;
 			}
 
@@ -158,6 +180,15 @@ void GameServer::ProcessNetworkQueue()
 		}
 		
 		printf( "Received packet from %s:%i.\n", receivedIPAddress.c_str(), receivedPort );
+		switch( receivedPacket.type )
+		{
+		case TYPE_Update:
+			ReceiveUpdateFromClient( receivedPacket, receivedClient );
+			break;
+		case TYPE_Join:
+		default:
+			printf( "WARNING: Received bad packet from %s:%i.\n", receivedIPAddress.c_str(), receivedPort );
+		}
 		receivedClient->secondsSinceLastReceivedPacket = 0.f;
 		numberOfBytesInNetworkQueue = m_serverSocket.GetNumberOfBytesInNetworkQueue();
 	}
@@ -166,6 +197,11 @@ void GameServer::ProcessNetworkQueue()
 //-----------------------------------------------------------------------------------------------
 void GameServer::ReceiveUpdateFromClient( const MainPacketType& updatePacket, ClientInfo* client )
 {
+	client->xPosition = updatePacket.data.updated.xPosition;
+	client->yPosition = updatePacket.data.updated.yPosition;
+	client->xVelocity = updatePacket.data.updated.xVelocity;
+	client->yVelocity = updatePacket.data.updated.yVelocity;
+	client->orientationDegrees = updatePacket.data.updated.orientationDegrees;
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -221,11 +257,22 @@ void GameServer::SendPacketToClient( const MainPacketType& packet, ClientInfo* c
 		printf( "Unable to send packet to client at %s:%i. Error Code:%i.\n", client->ipAddress.c_str(), client->portNumber, errorCode );
 		exit( -42 );
 	}
+
+	if( packet.IsGuaranteed() )
+	{
+		client->unacknowledgedPackets.insert( packet );
+	}
 }
 
 //-----------------------------------------------------------------------------------------------
-void GameServer::UpdateGameState()
+void GameServer::UpdateGameState( float /*deltaSeconds*/ )
 {
-
+// 	for( unsigned int i = 0; i < m_clientList.size(); ++i )
+// 	{
+// 		ClientInfo*& client = m_clientList[ i ];
+// 
+// 		client->xPosition += client->xVelocity * deltaSeconds;
+// 		client->yPosition += client->yVelocity * deltaSeconds;
+// 	}
 }
 #pragma endregion
