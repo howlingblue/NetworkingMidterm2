@@ -3,7 +3,6 @@
 
 //-----------------------------------------------------------------------------------------------
 #include <map>
-#include <set>
 #include <vector>
 #include "../../../Common/Engine/Color.hpp"
 #include "../../../Common/Engine/Texture.hpp"
