@@ -48,6 +48,7 @@ public:
 private:
 	ClientInfo* AddNewClient( const std::string& ipAddress, unsigned short portNumber );
 	void BroadcastGameStateToClients();
+	void HandleTouchAndResetGame( const MainPacketType& touchPacket );
 	void PrintConnectedClients() const;
 	ClientInfo* FindClientByAddress( const std::string& ipAddress, unsigned short portNumber );
 	ClientInfo* FindClientByID( unsigned short clientID );

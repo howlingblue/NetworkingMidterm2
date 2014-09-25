@@ -200,12 +200,29 @@ void GameServer::ProcessNetworkQueue()
 		case TYPE_Update:
 			ReceiveUpdateFromClient( receivedPacket, receivedClient );
 			break;
+		case TYPE_Touch:
+			HandleTouchAndResetGame( receivedPacket );
+			break;
 		case TYPE_Join:
 		default:
 			printf( "WARNING: Received bad packet from %s:%i.\n", receivedIPAddress.c_str(), receivedPort );
 		}
 		receivedClient->secondsSinceLastReceivedPacket = 0.f;
 		numberOfBytesInNetworkQueue = m_serverSocket.GetNumberOfBytesInNetworkQueue();
+	}
+}
+
+//-----------------------------------------------------------------------------------------------
+void GameServer::HandleTouchAndResetGame( const MainPacketType& touchPacket )
+{
+	ClientInfo* itPlayer = FindClientByID( touchPacket.data.touch.receiverID );
+	ClientInfo* touchingPlayer = FindClientByID( touchPacket.data.touch.instigatorID );
+
+	printf( "Player %i touched it player %i! Resetting Game...", touchingPlayer->id, itPlayer->id );
+	m_itPlayerID = touchingPlayer->id;
+	for( unsigned int i = 0; i < m_clientList.size(); ++i )
+	{
+		ResetClient( m_clientList[ i ] );
 	}
 }
 

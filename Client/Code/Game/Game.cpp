@@ -480,13 +480,22 @@ void Game::Update( double timeSpentLastFrameSeconds )
 
 				Vector2 vectorFromItToLocalPlayer = itPlayerPosition - m_activePlayers[ i ]->GetCurrentPosition();
 				if( vectorFromItToLocalPlayer.Length() < TOUCH_DISTANCE )
+				{
 					SendPlayerTouchedIt( m_activePlayers[ i ], m_localPlayer );
+					m_currentState = STATE_WaitingForRestart;
+				}
 			}
 		}
 	}
 	else
 	{
+		ProcessPacketQueue();
 
+		if( m_currentState == STATE_WaitingForRestart )
+		{
+			printf( "Sending touch packet to server @%s:%i.\n", m_serverAddress.c_str(), m_serverPort );
+			//SendJoinRequestToServer();
+		}
 	}
 }
 #pragma endregion
