@@ -25,7 +25,7 @@ const int WINDOW_OFFSET_VERT = 50;
 const int WINDOW_OFFSET_HORZ = 50;
 
 static const double LOCKED_FRAME_RATE_SECONDS = 1.0 / 60.0;
-static Game g_gameInstance( SCREEN_WIDTH, SCREEN_HEIGHT );
+static Game* g_gameInstance;
 
 //-----------------------------------------------------------------------------------------------
 LRESULT CALLBACK WindowsMessageHandlingProcedure( HWND windowHandle, UINT wmMessageCode, WPARAM wParam, LPARAM lParam )
@@ -47,13 +47,13 @@ LRESULT CALLBACK WindowsMessageHandlingProcedure( HWND windowHandle, UINT wmMess
 			}
 			else
 			{
-				bool wasProcessed = g_gameInstance.HandleKeyDownEvent( asKey );
+				bool wasProcessed = g_gameInstance->HandleKeyDownEvent( asKey );
 				if( wasProcessed ) 
 					return 0;
 			}
 			break;
 		case WM_KEYUP:
-			bool wasProcessed = g_gameInstance.HandleKeyUpEvent( asKey );
+			bool wasProcessed = g_gameInstance->HandleKeyUpEvent( asKey );
 			if( wasProcessed ) 
 				return 0;
 			break;
@@ -63,7 +63,19 @@ LRESULT CALLBACK WindowsMessageHandlingProcedure( HWND windowHandle, UINT wmMess
 }
 
 //-----------------------------------------------------------------------------------------------
-void CreateOpenGLWindow( HINSTANCE applicationInstanceHandle )
+void CreateConsoleWindow( const char* windowTitle )
+{
+	AllocConsole();
+	AttachConsole( GetCurrentProcessId() );
+	freopen( "CON", "w", stdout );
+	SetConsoleTitle( windowTitle );
+	HWND consoleWindow = FindWindow( nullptr, windowTitle );
+
+	SetWindowPos( consoleWindow, nullptr, 50, 850, 800, 200, SWP_NOZORDER );
+}
+
+//-----------------------------------------------------------------------------------------------
+void CreateOpenGLWindow( const char* windowTitle, HINSTANCE applicationInstanceHandle )
 {
 	// Define a window class
 	WNDCLASSEX windowClassDescription;
@@ -90,7 +102,7 @@ void CreateOpenGLWindow( HINSTANCE applicationInstanceHandle )
 	g_hWnd = CreateWindowEx(
 		windowStyleExFlags,
 		windowClassDescription.lpszClassName,
-		TEXT( APP_NAME ),
+		TEXT( windowTitle ),
 		windowStyleFlags,
 		windowRect.left,
 		windowRect.top,
@@ -151,7 +163,7 @@ void RunMessagePump()
 //-----------------------------------------------------------------------------------------------
 void Update( double timeSpentLastFrameSeconds )
 {
-	g_gameInstance.Update( timeSpentLastFrameSeconds );
+	g_gameInstance->Update( timeSpentLastFrameSeconds );
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -160,7 +172,8 @@ void Render()
 	glClearColor( 0.898f, 0.792f, 0.713f, 1.f );
 	glClear( GL_COLOR_BUFFER_BIT );
 
-	g_gameInstance.Render();
+	g_gameInstance->Render();
+
 	SwapBuffers( g_displayDeviceContext );
 }
 
@@ -206,19 +219,13 @@ int WINAPI WinMain( HINSTANCE applicationInstanceHandle, HINSTANCE, LPSTR comman
 
 	if( g_openConsole )
 	{
-		AllocConsole();
-		AttachConsole( GetCurrentProcessId() );
-		freopen( "CON", "w", stdout );
-
-		char consoleWindowTitle[ 16 ] = "Vingine Console";
-		SetConsoleTitle( &consoleWindowTitle[ 0 ] );
-		HWND consoleWindow = FindWindow( nullptr, &consoleWindowTitle[ 0 ] );
-
-		SetWindowPos( consoleWindow, nullptr, 50, 850, 800, 200, SWP_NOZORDER );
+		CreateConsoleWindow( "Vingine Console" );
 	}
+	CreateOpenGLWindow( APP_NAME, applicationInstanceHandle );
 
-	CreateOpenGLWindow( applicationInstanceHandle );
-	g_gameInstance.Start( clientPort, serverAddress, serverPort );
+	g_gameInstance = new Game( SCREEN_WIDTH, SCREEN_HEIGHT );
+	g_gameInstance->Start( clientPort, serverAddress, serverPort );
+
 	while( !g_isQuitting )	
 	{
 		RunFrame();
