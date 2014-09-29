@@ -1,4 +1,5 @@
 #include <iostream>
+#pragma comment( lib, "opengl32" ) // Link in the OpenGL32.lib static library
 
 #include "../../Common/Engine/TimeInterface.hpp"
 #include "GameServer.hpp"

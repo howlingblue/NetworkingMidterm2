@@ -7,13 +7,19 @@
 #include <vector>
 #include "../../Common/Engine/UDPSocket.hpp"
 #include "../../Common/Game/MidtermPacket.hpp"
+#include "../../Common/Game/Player.hpp"
 
 typedef MidtermPacket MainPacketType;
+
+typedef unsigned char RoomID;
+static const RoomID ROOM_Lobby = 254;
+static const RoomID ROOM_None = 255;
 
 //-----------------------------------------------------------------------------------------------
 struct ClientInfo
 {
 	unsigned char id;
+	RoomID currentRoom;
 	std::string ipAddress;
 	unsigned short portNumber;
 
@@ -21,11 +27,15 @@ struct ClientInfo
 	std::set< MainPacketType, PacketComparer > unacknowledgedPackets;
 	float secondsSinceLastReceivedPacket;
 
-	float xPosition;
-	float yPosition;
-	float xVelocity;
-	float yVelocity;
-	float orientationDegrees;
+	Player* ownedPlayer;
+
+	ClientInfo()
+		: id( 0 )
+		, currentRoom( 0 )
+		, currentPacketNumber( 1 )
+		, secondsSinceLastReceivedPacket( 0.f )
+		, ownedPlayer( nullptr )
+	{ }
 };
 
 //-----------------------------------------------------------------------------------------------

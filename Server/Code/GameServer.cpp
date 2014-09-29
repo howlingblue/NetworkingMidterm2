@@ -82,6 +82,7 @@ ClientInfo* GameServer::AddNewClient( const std::string& ipAddress, unsigned sho
 	newClient->portNumber = portNumber;
 	newClient->currentPacketNumber = 1;
 	newClient->secondsSinceLastReceivedPacket = 0.f;
+	newClient->ownedPlayer = new Player();
 	return newClient;
 }
 
@@ -95,11 +96,15 @@ void GameServer::BroadcastGameStateToClients()
 		MainPacketType updatePacket;
 		updatePacket.type = TYPE_Update;
 		updatePacket.clientID = broadcastedClient->id;
-		updatePacket.data.updated.xPosition = broadcastedClient->xPosition;
-		updatePacket.data.updated.yPosition = broadcastedClient->yPosition;
-		updatePacket.data.updated.xVelocity = broadcastedClient->xVelocity;
-		updatePacket.data.updated.yVelocity = broadcastedClient->yVelocity;
-		updatePacket.data.updated.orientationDegrees = broadcastedClient->orientationDegrees;
+
+		Vector2 currentPosition = broadcastedClient->ownedPlayer->GetCurrentPosition();
+		updatePacket.data.updated.xPosition = currentPosition.x;
+		updatePacket.data.updated.yPosition = currentPosition.y;
+
+		Vector2 currentVelocity = broadcastedClient->ownedPlayer->GetCurrentVelocity();
+		updatePacket.data.updated.xVelocity = currentVelocity.x;
+		updatePacket.data.updated.yVelocity = currentVelocity.y;
+		updatePacket.data.updated.orientationDegrees = broadcastedClient->ownedPlayer->GetCurrentOrientation();
 
 		for( unsigned int j = 0; j < m_clientList.size(); ++j )
 		{
@@ -238,11 +243,9 @@ void GameServer::HandleTouchAndResetGame( const MainPacketType& touchPacket )
 //-----------------------------------------------------------------------------------------------
 void GameServer::ReceiveUpdateFromClient( const MainPacketType& updatePacket, ClientInfo* client )
 {
-	client->xPosition = updatePacket.data.updated.xPosition;
-	client->yPosition = updatePacket.data.updated.yPosition;
-	client->xVelocity = updatePacket.data.updated.xVelocity;
-	client->yVelocity = updatePacket.data.updated.yVelocity;
-	client->orientationDegrees = updatePacket.data.updated.orientationDegrees;
+	client->ownedPlayer->SetClientPosition( updatePacket.data.updated.xPosition, updatePacket.data.updated.yPosition );
+	client->ownedPlayer->SetClientVelocity( updatePacket.data.updated.xVelocity, updatePacket.data.updated.yVelocity );
+	client->ownedPlayer->SetClientOrientation( updatePacket.data.updated.orientationDegrees );
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -277,14 +280,16 @@ void GameServer::ResetClient( ClientInfo* client )
 		m_itPlayerID = client->id;
 	}
 
-	client->xPosition = GetRandomFloatBetweenZeroandOne() * 600.f;
+	Vector2 startingPosition;
+	startingPosition.x = GetRandomFloatBetweenZeroandOne() * 600.f;
 	if( client->id == m_itPlayerID )
-		client->yPosition = 0;
+		startingPosition.y = 0;
 	else
-		client->yPosition = GetRandomFloatBetweenZeroandOne() * 600.f;
-	client->xVelocity = 0.f;
-	client->yVelocity = 0.f;
-	client->orientationDegrees = 0.f;
+		startingPosition.y = GetRandomFloatBetweenZeroandOne() * 600.f;
+
+	client->ownedPlayer->SetClientPosition( startingPosition.x, startingPosition.y );
+	client->ownedPlayer->SetClientVelocity( 0.f, 0.f );
+	client->ownedPlayer->SetClientOrientation( 0.f );
 
 	MainPacketType resetPacket;
 	resetPacket.type = TYPE_Reset;
@@ -292,11 +297,12 @@ void GameServer::ResetClient( ClientInfo* client )
 	resetPacket.number = client->currentPacketNumber;
 	++client->currentPacketNumber;
 	resetPacket.data.reset.itPlayerID = m_itPlayerID;
-	resetPacket.data.reset.xPosition = client->xPosition;
-	resetPacket.data.reset.yPosition = client->yPosition;
-	resetPacket.data.reset.xVelocity = client->xVelocity;
-	resetPacket.data.reset.yVelocity = client->yVelocity;
-	resetPacket.data.reset.orientationDegrees = client->orientationDegrees;
+
+	resetPacket.data.reset.xPosition = startingPosition.x;
+	resetPacket.data.reset.yPosition = startingPosition.y;
+	resetPacket.data.reset.xVelocity = 0.f;
+	resetPacket.data.reset.yVelocity = 0.f;
+	resetPacket.data.reset.orientationDegrees = 0.f;
 	SendPacketToClient( resetPacket, client );
 }
 
