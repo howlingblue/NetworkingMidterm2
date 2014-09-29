@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <gl/gl.h>
 
+#include <cmath>
 #include "Player.hpp"
 
 //-----------------------------------------------------------------------------------------------
@@ -43,5 +44,23 @@ void Player::Update( float deltaSeconds )
 
 	m_clientPosition += 0.2f * ( goalPosition - m_clientPosition );
 	m_clientVelocity += 0.2f * ( m_serverVelocity - m_clientVelocity );
-	m_clientOrientationDegrees += 0.2f * ( m_serverOrientationDegrees - m_clientOrientationDegrees );
+
+	//Interpolate rotation
+	float angularDisplacementDegrees = m_serverOrientationDegrees - m_clientOrientationDegrees;
+	float angularRotationThisFrame = 0.2f * angularDisplacementDegrees;
+
+	if( abs( angularDisplacementDegrees ) < angularRotationThisFrame )
+		return;
+
+	while( angularDisplacementDegrees > 180.f )
+		angularDisplacementDegrees -= 360.f;
+
+	while( angularDisplacementDegrees < -180.f )
+		angularDisplacementDegrees += 360.f;
+
+	if( angularDisplacementDegrees < 0 )
+		m_clientOrientationDegrees -= angularDisplacementDegrees;
+
+	if( angularDisplacementDegrees > 0 )
+		m_clientOrientationDegrees += angularDisplacementDegrees;
 }
