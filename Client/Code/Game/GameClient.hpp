@@ -70,6 +70,7 @@ class GameClient
 	void SendRoomCreationRequestToServer();
 	void SendUpdatedPositionsToServer( float deltaSeconds );
 	void UpdateEntityFromPacket( const MainPacketType& packet );
+	void UpdateLobbyStatus( const MainPacketType& packet );
 
 public:
 	GameClient( unsigned int screenWidth, unsigned int screenHeight );

@@ -86,11 +86,21 @@ ClientInfo* GameServer::AddNewClient( const std::string& ipAddress, unsigned sho
 //-----------------------------------------------------------------------------------------------
 void GameServer::BroadcastGameStateToClients()
 {
+	MainPacketType lobbyUpdatePacket;
+	lobbyUpdatePacket.type = TYPE_Update;
+	lobbyUpdatePacket.clientID = 0;
+	lobbyUpdatePacket.data.updated.numberOfOpenRooms = m_openRooms.size();
+
 	for( unsigned int i = 0; i < m_clientList.size(); ++i )
 	{
 		ClientInfo*& broadcastedClient = m_clientList[ i ];
 		if( broadcastedClient->currentRoom >= ROOM_Lobby )
-			continue; // There is no state in the lobby
+		{
+			lobbyUpdatePacket.number = broadcastedClient->currentPacketNumber;
+			++broadcastedClient->currentPacketNumber;
+			SendPacketToClient( lobbyUpdatePacket, broadcastedClient );
+			continue; 
+		}
 
 		MainPacketType updatePacket;
 		updatePacket.type = TYPE_Update;

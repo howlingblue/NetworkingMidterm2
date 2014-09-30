@@ -73,6 +73,7 @@ struct UpdatePacket
 	float xVelocity;
 	float yVelocity;
 	float orientationDegrees;
+	unsigned char numberOfOpenRooms;
 };
 #pragma endregion
 

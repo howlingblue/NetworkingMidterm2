@@ -149,7 +149,12 @@ void GameClient::HandleIncomingPacket( const MainPacketType& packet )
 		ClearResendingPacket();
 		break;
 	case TYPE_Update:
-		UpdateEntityFromPacket( packet );
+		if( m_currentState == STATE_InGame )
+			UpdateEntityFromPacket( packet );
+		else if( m_currentState == STATE_InLobby )
+			UpdateLobbyStatus( packet );
+		else
+			printf( "WARNING: Received update while in non-updatable state!\n" );
 		break;
 	default:
 		break;
@@ -195,7 +200,7 @@ void GameClient::ProcessPacketQueue()
 		//Check for badly timed packets
 		if( m_currentState == STATE_WaitingToJoinServer || m_currentState == STATE_InLobby )
 		{
-			if( packet->type != TYPE_EnteredRoom )
+			if( packet->type != TYPE_EnteredRoom && packet->type != TYPE_Update )
 			{
 				printf( "WARNING: Received invalid packet from server while waiting for room entry!!\n" );
 				continue;
@@ -494,6 +499,14 @@ void GameClient::Update( double timeSpentLastFrameSeconds )
 				SendJoinRequestToServer( 4 );
 			if( m_keyboard->KeyIsPressed( Keyboard::NUMBER_5 ) )
 				SendJoinRequestToServer( 5 );
+			if( m_keyboard->KeyIsPressed( Keyboard::NUMBER_6 ) )
+				SendJoinRequestToServer( 6 );
+			if( m_keyboard->KeyIsPressed( Keyboard::NUMBER_7 ) )
+				SendJoinRequestToServer( 7 );
+			if( m_keyboard->KeyIsPressed( Keyboard::NUMBER_8 ) )
+				SendJoinRequestToServer( 8 );
+			if( m_keyboard->KeyIsPressed( Keyboard::NUMBER_9 ) )
+				SendJoinRequestToServer( 9 );
 			if( m_keyboard->KeyIsPressed( Keyboard::N ) )
 				SendRoomCreationRequestToServer();
 			
@@ -550,5 +563,17 @@ void GameClient::Update( double timeSpentLastFrameSeconds )
 		secondsSinceLastResentPacket = 0.f;
 
 	secondsSinceLastResentPacket += deltaSeconds;
+}
+
+//-----------------------------------------------------------------------------------------------
+void GameClient::UpdateLobbyStatus( const MainPacketType& packet )
+{
+	printf( "IN LOBBY - Number of Open Rooms: %i\n", packet.data.updated.numberOfOpenRooms );
+
+	printf( "\tPress 'N' to create a new room.\n" );
+	for( unsigned int i = 0; i < packet.data.updated.numberOfOpenRooms && i < 10; ++i )
+	{
+		printf( "\tPress '%i' to enter room %i.\n", i, i );
+	}
 }
 #pragma endregion
