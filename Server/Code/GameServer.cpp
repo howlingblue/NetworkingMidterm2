@@ -382,6 +382,9 @@ void GameServer::HandleTouchAndResetGame( const MainPacketType& touchPacket )
 //-----------------------------------------------------------------------------------------------
 void GameServer::ReceiveUpdateFromClient( const MainPacketType& updatePacket, ClientInfo* client )
 {
+	if( client->ownedPlayer == nullptr )
+		return;
+
 	client->ownedPlayer->SetClientPosition( updatePacket.data.updated.xPosition, updatePacket.data.updated.yPosition );
 	client->ownedPlayer->SetClientVelocity( updatePacket.data.updated.xVelocity, updatePacket.data.updated.yVelocity );
 	client->ownedPlayer->SetClientOrientation( updatePacket.data.updated.orientationDegrees );
