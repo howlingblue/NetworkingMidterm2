@@ -11,9 +11,8 @@
 #include "../../../Common/Engine/Vector2.hpp"
 #include "../../../Common/Engine/Xbox.hpp"
 #include "../../../Common/Game/MidtermPacket.hpp"
-#include "../../../Common/Game/Player.hpp"
+#include "../../../Common/Game/Entity.hpp"
 #include "../../../Common/Game/World.hpp"
-#include "Objective.hpp"
 #include "TankControlWrapper.h"
 
 typedef MidtermPacket MainPacketType;
@@ -46,10 +45,10 @@ class Game
 	unsigned int m_lastReceivedPacketNumber;
 	unsigned int m_lastReceivedGuaranteedPacketNumber;
 
-	unsigned short			m_itPlayerID;
+	unsigned short			m_itEntityID;
 	State					m_currentState;
 	World*					m_currentWorld;
-	Player*					m_localPlayer;
+	Entity*					m_localEntity;
 	float					m_secondsSinceLastSentUpdate;
 
 	//Input Functions
@@ -64,9 +63,9 @@ class Game
 	void ResetGame( const MainPacketType& resetPacket );
 	void SendJoinRequestToServer();
 	void SendPacketToServer( const MainPacketType& packet );
-	void SendPlayerTouchedIt( Player* touchingPlayer, Player* itPlayer );
+	void SendEntityTouchedIt( Entity* touchingEntity, Entity* itEntity );
 	void SendUpdatedPositionsToServer( float deltaSeconds );
-	void UpdatePlayerFromPacket( const MainPacketType& packet );
+	void UpdateEntityFromPacket( const MainPacketType& packet );
 
 public:
 	Game( unsigned int screenWidth, unsigned int screenHeight );

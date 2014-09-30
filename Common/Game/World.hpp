@@ -3,7 +3,7 @@
 #define INCLUDED_WORLD_HPP
 
 #include <vector>
-#include "Player.hpp"
+#include "Entity.hpp"
 
 //-----------------------------------------------------------------------------------------------
 class World
@@ -14,17 +14,17 @@ public:
 	World();
 	~World();
 
-	void AddNewPlayer( Player* newPlayer ) { m_players.push_back( newPlayer ); }
-	Player* FindPlayerWithID( unsigned short targetID );
-	bool RemovePlayer( Player* player );
+	void AddNewPlayer( Entity* newPlayer ) { m_players.push_back( newPlayer ); }
+	Entity* FindPlayerWithID( unsigned short targetID );
+	bool RemovePlayer( Entity* player );
 
-	Player* FindPlayerTouchingIt();
+	Entity* FindPlayerTouchingIt();
 
 	void Render() const;
 	void Update( float deltaSeconds );
 
 private:
-	std::vector< Player* > m_players;
+	std::vector< Entity* > m_players;
 };
 
 

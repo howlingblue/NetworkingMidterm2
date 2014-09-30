@@ -7,13 +7,13 @@ STATIC const float World::OBJECTIVE_TOUCH_DISTANCE = 10.f;
 
 //-----------------------------------------------------------------------------------------------
 //Returns player pointer if player was found; nullptr otherwise
-Player* World::FindPlayerWithID( unsigned short targetID )
+Entity* World::FindPlayerWithID( unsigned short targetID )
 {
-	Player* foundPlayer = nullptr;
+	Entity* foundPlayer = nullptr;
 
 	for( unsigned int i = 0; i < m_players.size(); ++i )
 	{
-		Player*& player = m_players[ i ];
+		Entity*& player = m_players[ i ];
 
 		if( player->GetID() == targetID )
 		{
@@ -26,7 +26,7 @@ Player* World::FindPlayerWithID( unsigned short targetID )
 
 //-----------------------------------------------------------------------------------------------
 //Returns true if a player was successfully removed; false otherwise
-bool World::RemovePlayer( Player* player )
+bool World::RemovePlayer( Entity* player )
 {
 	for( unsigned int i = 0; i < m_players.size(); ++i )
 	{
@@ -41,9 +41,9 @@ bool World::RemovePlayer( Player* player )
 
 //-----------------------------------------------------------------------------------------------
 //Returns player pointer if player was found; nullptr otherwise
-Player* World::FindPlayerTouchingIt()
+Entity* World::FindPlayerTouchingIt()
 {
-	Player* itPlayer = nullptr;
+	Entity* itPlayer = nullptr;
 	for( unsigned int i = 0; i < m_players.size(); ++i )
 	{
 		if( m_players[ i ]->IsIt() )

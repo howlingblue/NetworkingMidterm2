@@ -202,7 +202,7 @@ void GameServer::ProcessNetworkQueue()
 
 			receivedClient = AddNewClient( receivedIPAddress, receivedPort );
 
-			receivedClient->ownedPlayer = new Player();
+			receivedClient->ownedPlayer = new Entity();
 			m_openRooms[ 0 ]->AddNewPlayer( receivedClient->ownedPlayer );
 
 			ResetClient( receivedClient );

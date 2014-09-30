@@ -6,8 +6,8 @@
 #include <set>
 #include <vector>
 #include "../../Common/Engine/UDPSocket.hpp"
+#include "../../Common/Game/Entity.hpp"
 #include "../../Common/Game/MidtermPacket.hpp"
-#include "../../Common/Game/Player.hpp"
 #include "../../Common/Game/World.hpp"
 
 typedef MidtermPacket MainPacketType;
@@ -24,7 +24,7 @@ struct ClientInfo
 	float secondsSinceLastReceivedPacket;
 
 	RoomID currentRoom;
-	Player* ownedPlayer;
+	Entity* ownedPlayer;
 
 	ClientInfo()
 		: id( 0 )

@@ -1,16 +1,16 @@
 #pragma once
-#ifndef INCLUDED_PLAYER_HPP
-#define INCLUDED_PLAYER_HPP
+#ifndef INCLUDED_ENTITY_HPP
+#define INCLUDED_ENTITY_HPP
 
 #include "../Engine/Color.hpp"
 #include "../Engine/Vector2.hpp"
 
 //-----------------------------------------------------------------------------------------------
-class Player
+class Entity
 {
 public:
-	Player();
-	~Player() {}
+	Entity();
+	~Entity() {}
 
 	void Render() const;
 	void Update( float deltaSeconds );
@@ -49,7 +49,7 @@ private:
 
 
 //-----------------------------------------------------------------------------------------------
-inline Player::Player()
+inline Entity::Entity()
 	: m_playerID( 0 )
 	, m_isIt( false )
 	, m_clientOrientationDegrees( 0 )
@@ -58,31 +58,31 @@ inline Player::Player()
 { }
 
 //-----------------------------------------------------------------------------------------------
-inline void Player::SetClientPosition( float x, float y )
+inline void Entity::SetClientPosition( float x, float y )
 {
 	m_clientPosition.x = x;
 	m_clientPosition.y = y;
 }
 
 //-----------------------------------------------------------------------------------------------
-inline void Player::SetClientVelocity( float vx, float vy )
+inline void Entity::SetClientVelocity( float vx, float vy )
 {
 	m_clientVelocity.x = vx;
 	m_clientVelocity.y = vy;
 }
 
 //-----------------------------------------------------------------------------------------------
-inline void Player::SetServerPosition( float x, float y )
+inline void Entity::SetServerPosition( float x, float y )
 {
 	m_serverPosition.x = x;
 	m_serverPosition.y = y;
 }
 
 //-----------------------------------------------------------------------------------------------
-inline void Player::SetServerVelocity( float vx, float vy )
+inline void Entity::SetServerVelocity( float vx, float vy )
 {
 	m_serverVelocity.x = vx;
 	m_serverVelocity.y = vy;
 }
 
-#endif //INCLUDED_PLAYER_HPP
+#endif //INCLUDED_ENTITY_HPP

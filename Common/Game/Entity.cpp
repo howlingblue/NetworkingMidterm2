@@ -3,10 +3,10 @@
 #include <gl/gl.h>
 
 #include <cmath>
-#include "Player.hpp"
+#include "Entity.hpp"
 
 //-----------------------------------------------------------------------------------------------
-void Player::Render() const
+void Entity::Render() const
 {
 	float halfWidth = 5.f, halfHeight = 5.f;
 
@@ -36,7 +36,7 @@ void Player::Render() const
 }
 
 //-----------------------------------------------------------------------------------------------
-void Player::Update( float deltaSeconds )
+void Entity::Update( float /*deltaSeconds*/ )
 {
 	//Janky Dead Reckoning
 	static const float GUESSTIMATED_LATENCY = .001f;

@@ -115,7 +115,7 @@ void Game::AcknowledgePacket(  const MainPacketType& packet )
 {
 	MainPacketType ackPacket;
 	ackPacket.type = TYPE_Acknowledgement;
-	ackPacket.clientID = m_localPlayer->GetID();
+	ackPacket.clientID = m_localEntity->GetID();
 	ackPacket.number = 0;
 
 	ackPacket.data.acknowledged.clientID = packet.clientID;
@@ -133,7 +133,7 @@ void Game::HandleIncomingPacket( const MainPacketType& packet )
 		m_currentState = STATE_InGame;
 		break;
 	case TYPE_Update:
-		UpdatePlayerFromPacket( packet );
+		UpdateEntityFromPacket( packet );
 		break;
 	default:
 		break;
@@ -220,23 +220,23 @@ void Game::ResetGame( const MainPacketType& resetPacket )
 		delete m_currentWorld;
 	m_currentWorld = new World();
 
-	m_itPlayerID = resetPacket.data.reset.itPlayerID;
+	m_itEntityID = resetPacket.data.reset.itPlayerID;
 
-	m_localPlayer = new Player();
-	m_currentWorld->AddNewPlayer( m_localPlayer );
-	m_localPlayer->SetID( resetPacket.clientID );
+	m_localEntity = new Entity();
+	m_currentWorld->AddNewPlayer( m_localEntity );
+	m_localEntity->SetID( resetPacket.clientID );
 
-	m_localPlayer->SetClientPosition( resetPacket.data.reset.xPosition, resetPacket.data.reset.yPosition );
-	m_localPlayer->SetServerPosition( resetPacket.data.reset.xPosition, resetPacket.data.reset.yPosition );
-	m_localPlayer->SetClientVelocity( resetPacket.data.reset.xVelocity, resetPacket.data.reset.yVelocity );
-	m_localPlayer->SetServerVelocity( resetPacket.data.reset.xVelocity, resetPacket.data.reset.yVelocity );
-	m_localPlayer->SetClientOrientation( resetPacket.data.reset.orientationDegrees );
-	m_localPlayer->SetServerOrientation( resetPacket.data.reset.orientationDegrees );
+	m_localEntity->SetClientPosition( resetPacket.data.reset.xPosition, resetPacket.data.reset.yPosition );
+	m_localEntity->SetServerPosition( resetPacket.data.reset.xPosition, resetPacket.data.reset.yPosition );
+	m_localEntity->SetClientVelocity( resetPacket.data.reset.xVelocity, resetPacket.data.reset.yVelocity );
+	m_localEntity->SetServerVelocity( resetPacket.data.reset.xVelocity, resetPacket.data.reset.yVelocity );
+	m_localEntity->SetClientOrientation( resetPacket.data.reset.orientationDegrees );
+	m_localEntity->SetServerOrientation( resetPacket.data.reset.orientationDegrees );
 
-	if( m_localPlayer->GetID() == m_itPlayerID )
-		m_localPlayer->SetItStatus( true );
+	if( m_localEntity->GetID() == m_itEntityID )
+		m_localEntity->SetItStatus( true );
 	else
-		m_localPlayer->SetItStatus( false );
+		m_localEntity->SetItStatus( false );
 
 }
 
@@ -265,16 +265,16 @@ void Game::SendPacketToServer( const MainPacketType& packet )
 }
 
 //-----------------------------------------------------------------------------------------------
-void Game::SendPlayerTouchedIt( Player* touchingPlayer, Player* itPlayer )
+void Game::SendEntityTouchedIt( Entity* touchingEntity, Entity* itEntity )
 {
 	MainPacketType touchPacket;
 	touchPacket.type = TYPE_Touch;
 	touchPacket.number = 0;
-	touchPacket.clientID = itPlayer->GetID();
+	touchPacket.clientID = itEntity->GetID();
 	touchPacket.timestamp = GetCurrentTimeSeconds();
 
-	touchPacket.data.touch.instigatorID = touchingPlayer->GetID();
-	touchPacket.data.touch.receiverID = itPlayer->GetID();
+	touchPacket.data.touch.instigatorID = touchingEntity->GetID();
+	touchPacket.data.touch.receiverID = itEntity->GetID();
 	SendPacketToServer( touchPacket );
 }
 
@@ -285,7 +285,7 @@ void Game::SendUpdatedPositionsToServer( float deltaSeconds )
 	MainPacketType updatePacket;
 	updatePacket.type = TYPE_Update;
 	updatePacket.number = 0;
-	updatePacket.clientID = m_localPlayer->GetID();
+	updatePacket.clientID = m_localEntity->GetID();
 	updatePacket.timestamp = GetCurrentTimeSeconds();
 
 	if( m_tankInputs[ 0 ].tankMovementMagnitude > 0.f )
@@ -294,10 +294,10 @@ void Game::SendUpdatedPositionsToServer( float deltaSeconds )
 		Vector2 deltaVelocity( cos( orientationRadians ), -sin( orientationRadians ) );
 		deltaVelocity *= m_tankInputs[ 0 ].tankMovementMagnitude * 10.f;
 
-		if( m_localPlayer->IsIt() )
+		if( m_localEntity->IsIt() )
 			deltaVelocity *= .9f; //It player is slower than the rest.
 
-		Vector2 currentPosition = m_localPlayer->GetCurrentPosition();
+		Vector2 currentPosition = m_localEntity->GetCurrentPosition();
 		currentPosition.x += deltaVelocity.x;
 		currentPosition.y += deltaVelocity.y;
 		updatePacket.data.updated.xPosition = currentPosition.x;
@@ -311,14 +311,14 @@ void Game::SendUpdatedPositionsToServer( float deltaSeconds )
 	}
 	else if( m_secondsSinceLastSentUpdate > MAX_SECONDS_BETWEEN_PACKET_SENDS )
 	{
-		Vector2 currentPosition = m_localPlayer->GetCurrentPosition();
+		Vector2 currentPosition = m_localEntity->GetCurrentPosition();
 		updatePacket.data.updated.xPosition = currentPosition.x;
 		updatePacket.data.updated.yPosition = currentPosition.y;
-		Vector2 currentVelocity = m_localPlayer->GetCurrentVelocity();
+		Vector2 currentVelocity = m_localEntity->GetCurrentVelocity();
 		updatePacket.data.updated.xVelocity = currentVelocity.x;
 		updatePacket.data.updated.yVelocity = currentVelocity.y;
 
-		float currentOrientation = m_localPlayer->GetCurrentOrientation();
+		float currentOrientation = m_localEntity->GetCurrentOrientation();
 		updatePacket.data.updated.orientationDegrees = currentOrientation;
 
 		SendPacketToServer( updatePacket );
@@ -329,31 +329,31 @@ void Game::SendUpdatedPositionsToServer( float deltaSeconds )
 }
 
 //-----------------------------------------------------------------------------------------------
-void Game::UpdatePlayerFromPacket( const MainPacketType& packet )
+void Game::UpdateEntityFromPacket( const MainPacketType& packet )
 {
-	Player* updatingPlayer = m_currentWorld->FindPlayerWithID( packet.clientID );
+	Entity* updatingEntity = m_currentWorld->FindPlayerWithID( packet.clientID );
 
-	if( updatingPlayer == nullptr )
+	if( updatingEntity == nullptr )
 	{
-		Player* newPlayer = new Player();
-		m_currentWorld->AddNewPlayer( newPlayer );
-		newPlayer->SetID( packet.clientID );
-		newPlayer->SetClientPosition( packet.data.updated.xPosition, packet.data.updated.yPosition );
-		newPlayer->SetClientVelocity( packet.data.updated.xVelocity, packet.data.updated.yVelocity );
-		newPlayer->SetClientOrientation( packet.data.updated.orientationDegrees );
+		Entity* newEntity = new Entity();
+		m_currentWorld->AddNewPlayer( newEntity );
+		newEntity->SetID( packet.clientID );
+		newEntity->SetClientPosition( packet.data.updated.xPosition, packet.data.updated.yPosition );
+		newEntity->SetClientVelocity( packet.data.updated.xVelocity, packet.data.updated.yVelocity );
+		newEntity->SetClientOrientation( packet.data.updated.orientationDegrees );
 
-		if( newPlayer->GetID() == m_itPlayerID )
-			newPlayer->SetItStatus( true );
+		if( newEntity->GetID() == m_itEntityID )
+			newEntity->SetItStatus( true );
 		else
-			newPlayer->SetItStatus( false );
+			newEntity->SetItStatus( false );
 
-		updatingPlayer = newPlayer;
+		updatingEntity = newEntity;
 		printf( "Adding new player: ID:%i", packet.clientID );
 	}
 
-	updatingPlayer->SetServerPosition( packet.data.updated.xPosition, packet.data.updated.yPosition );
-	updatingPlayer->SetServerVelocity( packet.data.updated.xVelocity, packet.data.updated.yVelocity );
-	updatingPlayer->SetServerOrientation( packet.data.updated.orientationDegrees );
+	updatingEntity->SetServerPosition( packet.data.updated.xPosition, packet.data.updated.yPosition );
+	updatingEntity->SetServerVelocity( packet.data.updated.xVelocity, packet.data.updated.yVelocity );
+	updatingEntity->SetServerOrientation( packet.data.updated.orientationDegrees );
 }
 #pragma endregion
 
@@ -446,12 +446,12 @@ void Game::Update( double timeSpentLastFrameSeconds )
 			m_currentWorld->Update( deltaSeconds );
 
 		//check for touches
-		if( m_localPlayer->IsIt() )
+		if( m_localEntity->IsIt() )
 		{
-			Player* playerTouchingIt = m_currentWorld->FindPlayerTouchingIt();
+			Entity* playerTouchingIt = m_currentWorld->FindPlayerTouchingIt();
 			if( playerTouchingIt != nullptr )
 			{
-				SendPlayerTouchedIt( playerTouchingIt, m_localPlayer );
+				SendEntityTouchedIt( playerTouchingIt, m_localEntity );
 				m_currentState = STATE_WaitingForRestart;
 			}
 		}
