@@ -126,8 +126,6 @@ void GameServer::BroadcastGameStateToClients()
 //-----------------------------------------------------------------------------------------------
 void GameServer::CloseRoom( RoomID room )
 {
-	delete m_openRooms[ room ];
-
 	for( unsigned int i = 0; i < m_clientList.size(); ++i )
 	{
 		ClientInfo*& client = m_clientList[ i ];
@@ -137,6 +135,9 @@ void GameServer::CloseRoom( RoomID room )
 
 		MoveClientToRoom( client, ROOM_Lobby, false );
 	}
+
+	delete m_openRooms[ room ];
+	m_openRooms[ room ] = nullptr;
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -156,8 +157,24 @@ void GameServer::CreateNewRoomForClient( ClientInfo* client )
 //-----------------------------------------------------------------------------------------------
 RoomID GameServer::CreateNewWorld()
 {
-	m_openRooms.push_back( new World() );
-	World*& newWorld = m_openRooms.back();
+	World* newWorld = nullptr;
+	RoomID newWorldID = ROOM_None;
+	for( unsigned int i = 0; i < m_openRooms.size(); ++i )
+	{
+		if( m_openRooms[ i ] == nullptr )
+		{
+			m_openRooms[ i ] = new World();
+			newWorld = m_openRooms[ i ];
+			newWorldID = i;
+			break;
+		}
+	}
+	if( newWorld == nullptr )
+	{
+		m_openRooms.push_back( new World() );
+		newWorld = m_openRooms.back();
+		newWorldID = m_openRooms.size() - 1;
+	}
 
 	Vector2 objectivePosition( GetRandomFloatBetweenZeroandOne() * 600.f, 400.f );
 	Entity* objectiveFlag = new Entity();
@@ -165,7 +182,7 @@ RoomID GameServer::CreateNewWorld()
 	objectiveFlag->SetServerPosition( objectivePosition.x, objectivePosition.y );
 	newWorld->SetObjective( objectiveFlag );
 
-	return m_openRooms.size() - 1;
+	return newWorldID;
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -334,7 +351,7 @@ void GameServer::HandleTouchAndResetGame( const MainPacketType& touchPacket )
 	ClientInfo* itPlayer = FindClientByID( touchPacket.data.touch.receiverID );
 	ClientInfo* touchingPlayer = FindClientByID( touchPacket.data.touch.instigatorID );
 
-	printf( "Player %i touched the flag in room %i! Returning all players to lobby...", touchingPlayer->id, touchingPlayer->currentRoom );
+	printf( "Player %i touched the flag in room %i! Returning all players to lobby...\n", touchingPlayer->id, touchingPlayer->currentRoom );
 
 	RoomID roomNumberOfTouch = touchingPlayer->currentRoom;
 	World* roomWhereTouchOccurred = m_openRooms[ roomNumberOfTouch ];
