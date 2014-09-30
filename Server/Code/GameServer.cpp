@@ -50,12 +50,7 @@ void GameServer::Update( float deltaSeconds )
 	for( unsigned int i = 0; i < m_clientList.size(); ++i )
 	{
 		ClientInfo*& client = m_clientList[ i ];
-
-		std::set< MainPacketType, PacketComparer >::iterator unackedPacket;
-		for( unackedPacket = client->unacknowledgedPackets.begin(); unackedPacket != client->unacknowledgedPackets.end(); ++unackedPacket )
-		{
-			SendPacketToClient( *unackedPacket, client );
-		}
+		ResendUnacknowledgedPacketsToClient( client );
 	}
 
 	//Print all connected Clients
@@ -150,6 +145,7 @@ void GameServer::CreateNewRoomForClient( ClientInfo* client )
 		return;
 	}
 	unsigned char newRoomNumber = CreateNewWorld();
+	printf( "Creating room %i for client ID %i...\n", newRoomNumber, client->id );
 
 	MoveClientToRoom( client, newRoomNumber, true );
 }
@@ -396,6 +392,11 @@ void GameServer::RemoveAcknowledgedPacketFromClientQueue( const MainPacketType& 
 //-----------------------------------------------------------------------------------------------
 void GameServer::ResendUnacknowledgedPacketsToClient( ClientInfo* client )
 {
+	std::set< MainPacketType, PacketComparer >::iterator unackedPacket;
+	for( unackedPacket = client->unacknowledgedPackets.begin(); unackedPacket != client->unacknowledgedPackets.end(); ++unackedPacket )
+	{
+		SendPacketToClient( *unackedPacket, client );
+	}
 }
 
 //-----------------------------------------------------------------------------------------------
