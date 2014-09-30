@@ -139,6 +139,7 @@ void GameClient::HandleIncomingPacket( const MainPacketType& packet )
 			else
 				m_currentState = STATE_WaitingForGameStart;
 
+			m_myClientID = packet.clientID;
 			ClearResendingPacket();
 		}
 		break;
@@ -495,6 +496,19 @@ void GameClient::Update( double timeSpentLastFrameSeconds )
 				SendJoinRequestToServer( 5 );
 			if( m_keyboard->KeyIsPressed( Keyboard::N ) )
 				SendRoomCreationRequestToServer();
+			
+			static float secondsSinceLastResentPacket = 0.f;
+			if( secondsSinceLastResentPacket > MAX_SECONDS_BETWEEN_PACKET_SENDS )
+			{
+				MainPacketType keepAlivePacket;
+				keepAlivePacket.clientID = m_myClientID;
+				keepAlivePacket.type = TYPE_KeepAlive;
+				keepAlivePacket.number = 0;
+				SendPacketToServer( keepAlivePacket );
+
+				secondsSinceLastResentPacket = 0.f;
+			}
+			secondsSinceLastResentPacket += deltaSeconds;
 		}
 		break;
 	case STATE_InGame:

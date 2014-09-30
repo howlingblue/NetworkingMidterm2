@@ -316,6 +316,9 @@ void GameServer::ProcessNetworkQueue()
 		case TYPE_Join:
 			MoveClientToRoom( receivedClient, receivedPacket.data.joining.room, false );
 			break;
+		case TYPE_KeepAlive:
+			// Just keep that client alive, baby...
+			break;
 		default:
 			printf( "WARNING: Received bad packet from %s:%i.\n", receivedIPAddress.c_str(), receivedPort );
 		}
@@ -331,20 +334,19 @@ void GameServer::HandleTouchAndResetGame( const MainPacketType& touchPacket )
 	ClientInfo* itPlayer = FindClientByID( touchPacket.data.touch.receiverID );
 	ClientInfo* touchingPlayer = FindClientByID( touchPacket.data.touch.instigatorID );
 
-	printf( "Player %i touched the flag! Resetting Game...", touchingPlayer->id );
+	printf( "Player %i touched the flag in room %i! Returning all players to lobby...", touchingPlayer->id, touchingPlayer->currentRoom );
 
-	World* roomWhereTouchOccurred = m_openRooms[ touchingPlayer->currentRoom ];
+	RoomID roomNumberOfTouch = touchingPlayer->currentRoom;
+	World* roomWhereTouchOccurred = m_openRooms[ roomNumberOfTouch ];
 
+	//Get the room ready for another game (kinda useless right now, but hey...)
 	Entity* newFlag = new Entity();
 	Vector2 newFlagPosition( GetRandomFloatBetweenZeroandOne() * 600.f, 400.f );
 	newFlag->SetClientPosition( newFlagPosition.x, newFlagPosition.y );
 	newFlag->SetServerPosition( newFlagPosition.x, newFlagPosition.y );
 	roomWhereTouchOccurred->SetObjective( newFlag );
 	
-	for( unsigned int i = 0; i < m_clientList.size(); ++i )
-	{
-		ResetClient( m_clientList[ i ] );
-	}
+	CloseRoom( roomNumberOfTouch );
 }
 
 //-----------------------------------------------------------------------------------------------

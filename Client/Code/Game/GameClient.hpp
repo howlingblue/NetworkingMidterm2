@@ -49,6 +49,7 @@ class GameClient
 
 	State					m_currentState;
 	World*					m_currentWorld;
+	unsigned short			m_myClientID;
 	Entity*					m_localEntity;
 	float					m_secondsSinceLastSentUpdate;
 

@@ -12,6 +12,7 @@ static const PacketType TYPE_Update = 23;
 static const PacketType TYPE_Join = 24;
 static const PacketType TYPE_CreateRoom = 25;
 static const PacketType TYPE_EnteredRoom = 26;
+static const PacketType TYPE_KeepAlive = 27;
 
 typedef unsigned char RoomID;
 static const RoomID ROOM_Lobby = 254;
