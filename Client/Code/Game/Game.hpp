@@ -12,7 +12,7 @@
 #include "../../../Common/Engine/Xbox.hpp"
 #include "../../../Common/Game/MidtermPacket.hpp"
 #include "../../../Common/Game/Player.hpp"
-#include "Character.hpp"
+#include "../../../Common/Game/World.hpp"
 #include "Objective.hpp"
 #include "TankControlWrapper.h"
 
@@ -25,6 +25,7 @@ class Game
 	static const State STATE_WaitingForStart = 0;
 	static const State STATE_InGame = 1;
 	static const State STATE_WaitingForRestart = 2;
+	static const State STATE_InLobby = 3;
 
 	static const float		 WORLD_WIDTH;
 	static const float		 WORLD_HEIGHT;
@@ -47,7 +48,7 @@ class Game
 
 	unsigned short			m_itPlayerID;
 	State					m_currentState;
-	std::vector< Player* >	m_activePlayers;
+	World*					m_currentWorld;
 	Player*					m_localPlayer;
 	float					m_secondsSinceLastSentUpdate;
 
@@ -57,7 +58,6 @@ class Game
 
 	//Game Helper Functions
 	void AcknowledgePacket( const MainPacketType& packet );
-	Player* FindPlayerByID( unsigned short playerID );
 	void HandleIncomingPacket( const MainPacketType& packet );
 	void ProcessNetworkQueue();
 	void ProcessPacketQueue();

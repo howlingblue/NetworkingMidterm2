@@ -11,6 +11,10 @@ static const PacketType TYPE_Touch = 22;
 static const PacketType TYPE_Update = 23;
 static const PacketType TYPE_Join = 24;
 
+typedef unsigned char RoomID;
+static const RoomID ROOM_Lobby = 254;
+static const RoomID ROOM_None = 255;
+
 
 #pragma region Packet Data Types
 //-----------------------------------------------------------------------------------------------
@@ -23,6 +27,7 @@ struct AckPacket
 //-----------------------------------------------------------------------------------------------
 struct JoinPacket
 {
+	RoomID room;
 };
 
 //-----------------------------------------------------------------------------------------------
@@ -67,6 +72,7 @@ struct MidtermPacket
 	union PacketData
 	{
 		AckPacket acknowledged;
+		JoinPacket joining;
 		ResetPacket reset;
 		TouchPacket touch;
 		UpdatePacket updated;

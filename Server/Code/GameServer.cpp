@@ -22,6 +22,8 @@ void GameServer::Initialize( const std::string& portNumber )
 	}
 
 	m_serverSocket.SetFunctionsToNonbindingMode();
+
+	m_openRooms.push_back( new World() );
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -82,7 +84,6 @@ ClientInfo* GameServer::AddNewClient( const std::string& ipAddress, unsigned sho
 	newClient->portNumber = portNumber;
 	newClient->currentPacketNumber = 1;
 	newClient->secondsSinceLastReceivedPacket = 0.f;
-	newClient->ownedPlayer = new Player();
 	return newClient;
 }
 
@@ -200,6 +201,10 @@ void GameServer::ProcessNetworkQueue()
 			}
 
 			receivedClient = AddNewClient( receivedIPAddress, receivedPort );
+
+			receivedClient->ownedPlayer = new Player();
+			m_openRooms[ 0 ]->AddNewPlayer( receivedClient->ownedPlayer );
+
 			ResetClient( receivedClient );
 			printf( "Received join packet from %s:%i. Added as client number %i.\n", receivedIPAddress.c_str(), receivedPort, receivedClient->id );
 			continue;
@@ -328,6 +333,10 @@ void GameServer::SendPacketToClient( const MainPacketType& packet, ClientInfo* c
 //-----------------------------------------------------------------------------------------------
 void GameServer::UpdateGameState( float /*deltaSeconds*/ )
 {
+	for( unsigned int i = 0; i < m_openRooms.size(); ++i )
+	{
+		//m_openRooms[ i ].Update( deltaSeconds );
+	}
 // 	for( unsigned int i = 0; i < m_clientList.size(); ++i )
 // 	{
 // 		ClientInfo*& client = m_clientList[ i ];

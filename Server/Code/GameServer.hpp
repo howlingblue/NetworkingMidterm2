@@ -8,18 +8,14 @@
 #include "../../Common/Engine/UDPSocket.hpp"
 #include "../../Common/Game/MidtermPacket.hpp"
 #include "../../Common/Game/Player.hpp"
+#include "../../Common/Game/World.hpp"
 
 typedef MidtermPacket MainPacketType;
-
-typedef unsigned char RoomID;
-static const RoomID ROOM_Lobby = 254;
-static const RoomID ROOM_None = 255;
 
 //-----------------------------------------------------------------------------------------------
 struct ClientInfo
 {
 	unsigned char id;
-	RoomID currentRoom;
 	std::string ipAddress;
 	unsigned short portNumber;
 
@@ -27,11 +23,12 @@ struct ClientInfo
 	std::set< MainPacketType, PacketComparer > unacknowledgedPackets;
 	float secondsSinceLastReceivedPacket;
 
+	RoomID currentRoom;
 	Player* ownedPlayer;
 
 	ClientInfo()
 		: id( 0 )
-		, currentRoom( 0 )
+		, currentRoom( ROOM_None )
 		, currentPacketNumber( 1 )
 		, secondsSinceLastReceivedPacket( 0.f )
 		, ownedPlayer( nullptr )
@@ -71,9 +68,12 @@ private:
 	void UpdateGameState( float deltaSeconds );
 
 	Network::UDPSocket m_serverSocket;
+
 	unsigned int m_nextClientID;
 	std::vector< ClientInfo* > m_clientList;
+
 	unsigned short m_itPlayerID;
+	std::vector< World* > m_openRooms;
 };
 
 #endif //INCLUDED_GAME_SERVER_HPP

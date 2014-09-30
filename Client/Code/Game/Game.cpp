@@ -124,24 +124,6 @@ void Game::AcknowledgePacket(  const MainPacketType& packet )
 }
 
 //-----------------------------------------------------------------------------------------------
-Player* Game::FindPlayerByID( unsigned short playerID )
-{
-	Player* foundPlayer = nullptr;
-
-	for( unsigned int i = 0; i < m_activePlayers.size(); ++i )
-	{
-		Player*& player = m_activePlayers[ i ];
-
-		if( player->GetID() == playerID )
-		{
-			foundPlayer = player;
-			break;
-		}
-	}
-	return foundPlayer;
-}
-
-//-----------------------------------------------------------------------------------------------
 void Game::HandleIncomingPacket( const MainPacketType& packet )
 {
 	switch( packet.type )
@@ -234,16 +216,14 @@ void Game::ProcessPacketQueue()
 //-----------------------------------------------------------------------------------------------
 void Game::ResetGame( const MainPacketType& resetPacket )
 {
-	for( unsigned int i = 0; i < m_activePlayers.size(); ++i )
-	{
-		delete m_activePlayers[ i ];
-	}
-	m_activePlayers.clear();
+	if( m_currentWorld != nullptr )
+		delete m_currentWorld;
+	m_currentWorld = new World();
 
 	m_itPlayerID = resetPacket.data.reset.itPlayerID;
 
-	m_activePlayers.push_back( new Player() );
-	m_localPlayer = m_activePlayers.back();
+	m_localPlayer = new Player();
+	m_currentWorld->AddNewPlayer( m_localPlayer );
 	m_localPlayer->SetID( resetPacket.clientID );
 
 	m_localPlayer->SetClientPosition( resetPacket.data.reset.xPosition, resetPacket.data.reset.yPosition );
@@ -351,12 +331,12 @@ void Game::SendUpdatedPositionsToServer( float deltaSeconds )
 //-----------------------------------------------------------------------------------------------
 void Game::UpdatePlayerFromPacket( const MainPacketType& packet )
 {
-	Player* updatingPlayer = FindPlayerByID( packet.clientID );
+	Player* updatingPlayer = m_currentWorld->FindPlayerWithID( packet.clientID );
 
 	if( updatingPlayer == nullptr )
 	{
-		m_activePlayers.push_back( new Player() );
-		Player* newPlayer = m_activePlayers.back();
+		Player* newPlayer = new Player();
+		m_currentWorld->AddNewPlayer( newPlayer );
 		newPlayer->SetID( packet.clientID );
 		newPlayer->SetClientPosition( packet.data.updated.xPosition, packet.data.updated.yPosition );
 		newPlayer->SetClientVelocity( packet.data.updated.xVelocity, packet.data.updated.yVelocity );
@@ -385,6 +365,7 @@ Game::Game( unsigned int screenWidth, unsigned int screenHeight )
 	, m_isKeyDown( 256, false )
 	, m_tankInputs( 1 )
 	, m_currentState( STATE_WaitingForStart )
+	, m_currentWorld( nullptr )
 	, m_lastReceivedGuaranteedPacketNumber( 0 )
 	, m_lastReceivedPacketNumber( 0 )
 {
@@ -432,10 +413,8 @@ void Game::Render() const
  	glPushMatrix();
 	glOrtho( 0.f, m_screenSize.x, m_screenSize.y, 0.f, 0.f, 1.f );
 
-	for( unsigned int i = 0; i < m_activePlayers.size(); ++i )
-	{
-		m_activePlayers[ i ]->Render();
-	}
+	if( m_currentWorld != nullptr )
+		m_currentWorld->Render();
 
  	glPopMatrix();
 }
@@ -462,28 +441,18 @@ void Game::Update( double timeSpentLastFrameSeconds )
 		ProcessPacketQueue();
 		HandleInput( deltaSeconds );
 		SendUpdatedPositionsToServer( deltaSeconds );
-		for( unsigned int i = 0; i < m_activePlayers.size(); ++i )
-		{
-			m_activePlayers[ i ]->Update( deltaSeconds );
-		}
+
+		if( m_currentWorld != nullptr )
+			m_currentWorld->Update( deltaSeconds );
 
 		//check for touches
-		static float TOUCH_DISTANCE = 10.f;
 		if( m_localPlayer->IsIt() )
 		{
-			Vector2 itPlayerPosition = m_localPlayer->GetCurrentPosition();
-
-			for( unsigned int i = 0; i < m_activePlayers.size(); ++i )
+			Player* playerTouchingIt = m_currentWorld->FindPlayerTouchingIt();
+			if( playerTouchingIt != nullptr )
 			{
-				if( m_activePlayers[ i ] == m_localPlayer )
-					continue;
-
-				Vector2 vectorFromItToLocalPlayer = itPlayerPosition - m_activePlayers[ i ]->GetCurrentPosition();
-				if( vectorFromItToLocalPlayer.Length() < TOUCH_DISTANCE )
-				{
-					SendPlayerTouchedIt( m_activePlayers[ i ], m_localPlayer );
-					m_currentState = STATE_WaitingForRestart;
-				}
+				SendPlayerTouchedIt( playerTouchingIt, m_localPlayer );
+				m_currentState = STATE_WaitingForRestart;
 			}
 		}
 	}
