@@ -1,23 +1,23 @@
 ﻿#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <gl/gl.h>
-#include "Game.hpp"
+#include "GameClient.hpp"
 #include "../../../Common/Engine/EngineCommon.hpp"
 #include "../../../Common/Engine/EngineMath.hpp"
 #include "../../../Common/Engine/TimeInterface.hpp"
 
 //-----------------------------------------------------------------------------------------------
-STATIC const float		 Game::WORLD_WIDTH  = 32.0f;
-STATIC const float		 Game::WORLD_HEIGHT = 18.0f;
-STATIC const float		 Game::IT_PLAYER_SPEED_MULTIPLIER = 1.1f;
-STATIC const float		 Game::MAX_SECONDS_BETWEEN_PACKET_SENDS = 1.f;
-STATIC const float		 Game::OBJECT_CONTACT_DISTANCE = 10.f;
-STATIC const float		 Game::SECONDS_TO_WAIT_BEFORE_RESENDS = 1.f;
+STATIC const float		 GameClient::WORLD_WIDTH  = 32.0f;
+STATIC const float		 GameClient::WORLD_HEIGHT = 18.0f;
+STATIC const float		 GameClient::IT_PLAYER_SPEED_MULTIPLIER = 1.1f;
+STATIC const float		 GameClient::MAX_SECONDS_BETWEEN_PACKET_SENDS = 1.f;
+STATIC const float		 GameClient::OBJECT_CONTACT_DISTANCE = 10.f;
+STATIC const float		 GameClient::SECONDS_TO_WAIT_BEFORE_RESENDS = 1.f;
 
 
 #pragma region Input Functions
 //-----------------------------------------------------------------------------------------------
-void Game::HandleInput( float deltaSeconds )
+void GameClient::HandleInput( float deltaSeconds )
 {
 	for( unsigned int i = 0; i < m_controllers.size(); ++i )
 	{
@@ -77,7 +77,7 @@ void Game::HandleInput( float deltaSeconds )
 }
 
 //-----------------------------------------------------------------------------------------------
-float Game::TransformKeyInputIntoAngle( bool upKeyIsPressed, bool rightKeyIsPressed, bool downKeyIsPressed, bool leftKeyIsPressed )
+float GameClient::TransformKeyInputIntoAngle( bool upKeyIsPressed, bool rightKeyIsPressed, bool downKeyIsPressed, bool leftKeyIsPressed )
 {
 	static int upDirectionValue = 2, rightDirectionValue = 2, downDirectionValue = 2, leftDirectionValue = 2;
 	
@@ -111,7 +111,7 @@ float Game::TransformKeyInputIntoAngle( bool upKeyIsPressed, bool rightKeyIsPres
 
 #pragma region Game Helper Functions
 //-----------------------------------------------------------------------------------------------
-void Game::AcknowledgePacket(  const MainPacketType& packet )
+void GameClient::AcknowledgePacket(  const MainPacketType& packet )
 {
 	MainPacketType ackPacket;
 	ackPacket.type = TYPE_Acknowledgement;
@@ -124,7 +124,7 @@ void Game::AcknowledgePacket(  const MainPacketType& packet )
 }
 
 //-----------------------------------------------------------------------------------------------
-void Game::HandleIncomingPacket( const MainPacketType& packet )
+void GameClient::HandleIncomingPacket( const MainPacketType& packet )
 {
 	switch( packet.type )
 	{
@@ -141,7 +141,7 @@ void Game::HandleIncomingPacket( const MainPacketType& packet )
 }
 
 //-----------------------------------------------------------------------------------------------
-void Game::ProcessNetworkQueue()
+void GameClient::ProcessNetworkQueue()
 {
 	std::string receivedIPAddress;
 	unsigned short receivedPort;
@@ -171,7 +171,7 @@ void Game::ProcessNetworkQueue()
 	}
 }
 //-----------------------------------------------------------------------------------------------
-void Game::ProcessPacketQueue()
+void GameClient::ProcessPacketQueue()
 {
 	std::set< MainPacketType, PacketComparer >::iterator packet;
 	for( packet = m_packetQueue.begin(); packet != m_packetQueue.end(); ++packet )
@@ -214,7 +214,7 @@ void Game::ProcessPacketQueue()
 }
 
 //-----------------------------------------------------------------------------------------------
-void Game::ResetGame( const MainPacketType& resetPacket )
+void GameClient::ResetGame( const MainPacketType& resetPacket )
 {
 	if( m_currentWorld != nullptr )
 		delete m_currentWorld;
@@ -245,7 +245,7 @@ void Game::ResetGame( const MainPacketType& resetPacket )
 }
 
 //-----------------------------------------------------------------------------------------------
-void Game::SendJoinRequestToServer()
+void GameClient::SendJoinRequestToServer()
 {
 	MainPacketType joinPacket;
 	joinPacket.type = TYPE_Join;
@@ -255,7 +255,7 @@ void Game::SendJoinRequestToServer()
 }
 
 //-----------------------------------------------------------------------------------------------
-void Game::SendPacketToServer( const MainPacketType& packet )
+void GameClient::SendPacketToServer( const MainPacketType& packet )
 {
 	packet.timestamp = GetCurrentTimeSeconds();
 
@@ -269,7 +269,7 @@ void Game::SendPacketToServer( const MainPacketType& packet )
 }
 
 //-----------------------------------------------------------------------------------------------
-void Game::SendEntityTouchedIt( Entity* touchingEntity, Entity* itEntity )
+void GameClient::SendEntityTouchedIt( Entity* touchingEntity, Entity* itEntity )
 {
 	MainPacketType touchPacket;
 	touchPacket.type = TYPE_Touch;
@@ -283,7 +283,7 @@ void Game::SendEntityTouchedIt( Entity* touchingEntity, Entity* itEntity )
 }
 
 //-----------------------------------------------------------------------------------------------
-void Game::SendUpdatedPositionsToServer( float deltaSeconds )
+void GameClient::SendUpdatedPositionsToServer( float deltaSeconds )
 {
 	Vector2 currentPlayerPosition;
 	MainPacketType updatePacket;
@@ -333,7 +333,7 @@ void Game::SendUpdatedPositionsToServer( float deltaSeconds )
 }
 
 //-----------------------------------------------------------------------------------------------
-void Game::UpdateEntityFromPacket( const MainPacketType& packet )
+void GameClient::UpdateEntityFromPacket( const MainPacketType& packet )
 {
 	Entity* updatingEntity = m_currentWorld->FindPlayerWithID( packet.clientID );
 
@@ -364,7 +364,7 @@ void Game::UpdateEntityFromPacket( const MainPacketType& packet )
 
 #pragma region Public Functions
 //-----------------------------------------------------------------------------------------------
-Game::Game( unsigned int screenWidth, unsigned int screenHeight )
+GameClient::GameClient( unsigned int screenWidth, unsigned int screenHeight )
 	: m_screenSize( Vector2( (float) screenWidth, (float) screenHeight ) )
 	, m_isKeyDown( 256, false )
 	, m_tankInputs( 1 )
@@ -377,21 +377,21 @@ Game::Game( unsigned int screenWidth, unsigned int screenHeight )
 }
 
 //-----------------------------------------------------------------------------------------------
-bool Game::HandleKeyDownEvent( unsigned char key )
+bool GameClient::HandleKeyDownEvent( unsigned char key )
 {
 	m_isKeyDown[ key ] = true;
 	return true;
 }
 
 //-----------------------------------------------------------------------------------------------
-bool Game::HandleKeyUpEvent( unsigned char key )
+bool GameClient::HandleKeyUpEvent( unsigned char key )
 {
 	m_isKeyDown[ key ] = false;
 	return true;
 }
 
 //-----------------------------------------------------------------------------------------------
-void Game::Start( const std::string& clientPort, const std::string& serverAddress, const std::string& serverPort )
+void GameClient::Start( const std::string& clientPort, const std::string& serverAddress, const std::string& serverPort )
 {
 	m_outputSocket.Initialize();
 
@@ -412,7 +412,7 @@ void Game::Start( const std::string& clientPort, const std::string& serverAddres
 }
 
 //-----------------------------------------------------------------------------------------------
-void Game::Render() const
+void GameClient::Render() const
 {
  	glPushMatrix();
 	glOrtho( 0.f, m_screenSize.x, m_screenSize.y, 0.f, 0.f, 1.f );
@@ -424,7 +424,7 @@ void Game::Render() const
 }
 
 //-----------------------------------------------------------------------------------------------
-void Game::Update( double timeSpentLastFrameSeconds )
+void GameClient::Update( double timeSpentLastFrameSeconds )
 {
 	float deltaSeconds = static_cast< float >( timeSpentLastFrameSeconds );
 

@@ -4,7 +4,7 @@
 #include <cassert>
 #include <crtdbg.h>
 #include "TimeInterface.hpp"
-#include "../../Client/Code/Game/Game.hpp"
+#include "../../Client/Code/Game/GameClient.hpp"
 #pragma comment( lib, "opengl32" ) // Link in the OpenGL32.lib static library
 #pragma warning( disable : 4996 ) // Ignore warning about freopen (I prefer standard C++ libraries)
 
@@ -25,7 +25,7 @@ const int WINDOW_OFFSET_VERT = 50;
 const int WINDOW_OFFSET_HORZ = 50;
 
 static const double LOCKED_FRAME_RATE_SECONDS = 1.0 / 60.0;
-static Game* g_gameInstance;
+static GameClient* g_gameClient;
 
 //-----------------------------------------------------------------------------------------------
 LRESULT CALLBACK WindowsMessageHandlingProcedure( HWND windowHandle, UINT wmMessageCode, WPARAM wParam, LPARAM lParam )
@@ -47,13 +47,13 @@ LRESULT CALLBACK WindowsMessageHandlingProcedure( HWND windowHandle, UINT wmMess
 			}
 			else
 			{
-				bool wasProcessed = g_gameInstance->HandleKeyDownEvent( asKey );
+				bool wasProcessed = g_gameClient->HandleKeyDownEvent( asKey );
 				if( wasProcessed ) 
 					return 0;
 			}
 			break;
 		case WM_KEYUP:
-			bool wasProcessed = g_gameInstance->HandleKeyUpEvent( asKey );
+			bool wasProcessed = g_gameClient->HandleKeyUpEvent( asKey );
 			if( wasProcessed ) 
 				return 0;
 			break;
@@ -163,7 +163,7 @@ void RunMessagePump()
 //-----------------------------------------------------------------------------------------------
 void Update( double timeSpentLastFrameSeconds )
 {
-	g_gameInstance->Update( timeSpentLastFrameSeconds );
+	g_gameClient->Update( timeSpentLastFrameSeconds );
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -172,7 +172,7 @@ void Render()
 	glClearColor( 0.898f, 0.792f, 0.713f, 1.f );
 	glClear( GL_COLOR_BUFFER_BIT );
 
-	g_gameInstance->Render();
+	g_gameClient->Render();
 
 	SwapBuffers( g_displayDeviceContext );
 }
@@ -223,8 +223,8 @@ int WINAPI WinMain( HINSTANCE applicationInstanceHandle, HINSTANCE, LPSTR comman
 	}
 	CreateOpenGLWindow( APP_NAME, applicationInstanceHandle );
 
-	g_gameInstance = new Game( SCREEN_WIDTH, SCREEN_HEIGHT );
-	g_gameInstance->Start( clientPort, serverAddress, serverPort );
+	g_gameClient = new GameClient( SCREEN_WIDTH, SCREEN_HEIGHT );
+	g_gameClient->Start( clientPort, serverAddress, serverPort );
 
 	while( !g_isQuitting )	
 	{

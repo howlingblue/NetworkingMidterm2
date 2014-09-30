@@ -1,5 +1,5 @@
-#ifndef INCLUDED_GAME_HPP
-#define INCLUDED_GAME_HPP
+#ifndef INCLUDED_GAME_CLIENT_HPP
+#define INCLUDED_GAME_CLIENT_HPP
 
 //-----------------------------------------------------------------------------------------------
 #include <map>
@@ -18,7 +18,7 @@
 typedef MidtermPacket MainPacketType;
 
 //-----------------------------------------------------------------------------------------------
-class Game
+class GameClient
 {
 	typedef unsigned char State;
 	static const State STATE_WaitingForStart = 0;
@@ -68,8 +68,8 @@ class Game
 	void UpdateEntityFromPacket( const MainPacketType& packet );
 
 public:
-	Game( unsigned int screenWidth, unsigned int screenHeight );
-	~Game() {};
+	GameClient( unsigned int screenWidth, unsigned int screenHeight );
+	~GameClient() {};
 
 	bool HandleKeyDownEvent( unsigned char key );
 	bool HandleKeyUpEvent( unsigned char key );
@@ -79,4 +79,4 @@ public:
 	void Update( double timeSpentLastFrameSeconds );
 };
 
-#endif //INCLUDED_GAME_HPP
+#endif //INCLUDED_GAME_CLIENT_HPP
