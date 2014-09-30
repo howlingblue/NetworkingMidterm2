@@ -24,13 +24,15 @@ struct ClientInfo
 	float secondsSinceLastReceivedPacket;
 
 	RoomID currentRoom;
+	bool ownsCurrentRoom;
 	Entity* ownedPlayer;
 
 	ClientInfo()
 		: id( 0 )
-		, currentRoom( ROOM_None )
 		, currentPacketNumber( 1 )
 		, secondsSinceLastReceivedPacket( 0.f )
+		, currentRoom( ROOM_None )
+		, ownsCurrentRoom( false )
 		, ownedPlayer( nullptr )
 	{ }
 };
@@ -55,11 +57,14 @@ public:
 private:
 	ClientInfo* AddNewClient( const std::string& ipAddress, unsigned short portNumber );
 	void BroadcastGameStateToClients();
-	unsigned char CreateNewWorld();
+	void CloseRoom( RoomID room );
+	void CreateNewRoomForClient( ClientInfo* client );
+	RoomID CreateNewWorld();
 	void HandleTouchAndResetGame( const MainPacketType& touchPacket );
 	void PrintConnectedClients() const;
 	ClientInfo* FindClientByAddress( const std::string& ipAddress, unsigned short portNumber );
 	ClientInfo* FindClientByID( unsigned short clientID );
+	void MoveClientToRoom( ClientInfo* client, RoomID room, bool ownsRoom );
 	void ProcessNetworkQueue();
 	void ReceiveUpdateFromClient( const MainPacketType& updatePacket, ClientInfo* client );
 	void RemoveAcknowledgedPacketFromClientQueue( const MainPacketType& ackPacket );

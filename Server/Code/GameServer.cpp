@@ -22,7 +22,6 @@ void GameServer::Initialize( const std::string& portNumber )
 	}
 
 	m_serverSocket.SetFunctionsToNonbindingMode();
-	CreateNewWorld();
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -40,6 +39,8 @@ void GameServer::Update( float deltaSeconds )
 		if( client->secondsSinceLastReceivedPacket > SECONDS_BEFORE_CLIENT_TIMES_OUT )
 		{
 			printf( "Removed client %i @%s:%i for timing out.\n", client->id, client->ipAddress.c_str(), client->portNumber );
+			if( client->ownsCurrentRoom )
+				CloseRoom( client->currentRoom );
 			m_clientList.erase( m_clientList.begin() + i );
 			--i;
 		}
@@ -83,7 +84,7 @@ ClientInfo* GameServer::AddNewClient( const std::string& ipAddress, unsigned sho
 	newClient->portNumber = portNumber;
 	newClient->currentPacketNumber = 1;
 	newClient->secondsSinceLastReceivedPacket = 0.f;
-	newClient->currentRoom = 0;
+	newClient->currentRoom = ROOM_None;
 	return newClient;
 }
 
@@ -93,6 +94,8 @@ void GameServer::BroadcastGameStateToClients()
 	for( unsigned int i = 0; i < m_clientList.size(); ++i )
 	{
 		ClientInfo*& broadcastedClient = m_clientList[ i ];
+		if( broadcastedClient->currentRoom >= ROOM_Lobby )
+			continue; // There is no state in the lobby
 
 		MainPacketType updatePacket;
 		updatePacket.type = TYPE_Update;
@@ -121,7 +124,37 @@ void GameServer::BroadcastGameStateToClients()
 }
 
 //-----------------------------------------------------------------------------------------------
-unsigned char GameServer::CreateNewWorld()
+void GameServer::CloseRoom( RoomID room )
+{
+	delete m_openRooms[ room ];
+
+	for( unsigned int i = 0; i < m_clientList.size(); ++i )
+	{
+		ClientInfo*& client = m_clientList[ i ];
+
+		if( client->currentRoom != room )
+			continue;
+
+		MoveClientToRoom( client, ROOM_Lobby, false );
+	}
+}
+
+//-----------------------------------------------------------------------------------------------
+void GameServer::CreateNewRoomForClient( ClientInfo* client )
+{
+	if( client->ownsCurrentRoom )
+	{
+		printf( "WARNING: Client with ID %i tried to create a room even though it's a room owner!\n", client->id );
+		//FIX: Let client know it's creating rooms even though it already has one
+		return;
+	}
+	unsigned char newRoomNumber = CreateNewWorld();
+
+	MoveClientToRoom( client, newRoomNumber, true );
+}
+
+//-----------------------------------------------------------------------------------------------
+RoomID GameServer::CreateNewWorld()
 {
 	m_openRooms.push_back( new World() );
 	World*& newWorld = m_openRooms.back();
@@ -165,6 +198,43 @@ ClientInfo* GameServer::FindClientByID( unsigned short clientID )
 		}
 	}
 	return foundClient;
+}
+
+//-----------------------------------------------------------------------------------------------
+void GameServer::MoveClientToRoom( ClientInfo* client, RoomID room, bool ownsRoom )
+{
+	if( room >= m_openRooms.size() && room < ROOM_Lobby )
+	{
+		printf( "WARNING: Client with ID %i is trying to join a room that doesn't exist!\n", client->id );
+		return;
+	}
+
+	if( client->currentRoom < ROOM_Lobby ) //If it's a room that contains a world
+	{
+		m_openRooms[ client->currentRoom ]->RemovePlayer( client->ownedPlayer );
+		client->ownedPlayer = nullptr;
+		client->currentRoom = ROOM_None;
+		client->ownsCurrentRoom = false;
+	}
+
+	client->currentRoom = room;
+	client->ownsCurrentRoom = ownsRoom;
+
+	MainPacketType newRoomPacket;
+	newRoomPacket.type = TYPE_EnteredRoom;
+	newRoomPacket.clientID = client->id;
+	newRoomPacket.data.entered.room = room;
+
+	newRoomPacket.number = client->currentPacketNumber;
+	++client->currentPacketNumber;
+	SendPacketToClient( newRoomPacket, client );
+
+	if( client->currentRoom < ROOM_Lobby )
+	{
+		client->ownedPlayer = new Entity();
+		m_openRooms[ client->currentRoom ]->AddNewPlayer( client->ownedPlayer );
+		ResetClient( client );
+	}
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -216,13 +286,14 @@ void GameServer::ProcessNetworkQueue()
 				printf( "WARNING: Received non-join packet from an unknown client at %s:%i.\n", receivedIPAddress.c_str(), receivedPort );
 				continue;
 			}
+			if( receivedPacket.data.joining.room == ROOM_None )
+			{
+				printf( "WARNING: Received join packet to invalid room from client at %s:%i.\n", receivedIPAddress.c_str(), receivedPort );
+				continue;
+			}
 
 			receivedClient = AddNewClient( receivedIPAddress, receivedPort );
-
-			receivedClient->ownedPlayer = new Entity();
-			m_openRooms[ 0 ]->AddNewPlayer( receivedClient->ownedPlayer );
-
-			ResetClient( receivedClient );
+			MoveClientToRoom( receivedClient, receivedPacket.data.joining.room, false );
 			printf( "Received join packet from %s:%i. Added as client number %i.\n", receivedIPAddress.c_str(), receivedPort, receivedClient->id );
 			continue;
 		}
@@ -239,10 +310,16 @@ void GameServer::ProcessNetworkQueue()
 		case TYPE_Touch:
 			HandleTouchAndResetGame( receivedPacket );
 			break;
+		case TYPE_CreateRoom:
+			CreateNewRoomForClient( receivedClient );
+			break;
 		case TYPE_Join:
+			MoveClientToRoom( receivedClient, receivedPacket.data.joining.room, false );
+			break;
 		default:
 			printf( "WARNING: Received bad packet from %s:%i.\n", receivedIPAddress.c_str(), receivedPort );
 		}
+
 		receivedClient->secondsSinceLastReceivedPacket = 0.f;
 		numberOfBytesInNetworkQueue = m_serverSocket.GetNumberOfBytesInNetworkQueue();
 	}

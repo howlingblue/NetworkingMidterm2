@@ -121,13 +121,31 @@ void GameClient::AcknowledgePacket(  const MainPacketType& packet )
 }
 
 //-----------------------------------------------------------------------------------------------
+void GameClient::ClearResendingPacket()
+{
+	delete m_packetToResend;
+	m_packetToResend = nullptr;
+}
+
+//-----------------------------------------------------------------------------------------------
 void GameClient::HandleIncomingPacket( const MainPacketType& packet )
 {
 	switch( packet.type )
 	{
+	case TYPE_EnteredRoom:
+		{
+			if( packet.data.entered.room == ROOM_Lobby )
+				m_currentState = STATE_InLobby;
+			else
+				m_currentState = STATE_WaitingForGameStart;
+
+			ClearResendingPacket();
+		}
+		break;
 	case TYPE_Reset:
 		ResetGame( packet );
 		m_currentState = STATE_InGame;
+		ClearResendingPacket();
 		break;
 	case TYPE_Update:
 		UpdateEntityFromPacket( packet );
@@ -173,14 +191,24 @@ void GameClient::ProcessPacketQueue()
 	std::set< MainPacketType, PacketComparer >::iterator packet;
 	for( packet = m_packetQueue.begin(); packet != m_packetQueue.end(); ++packet )
 	{
-		if( m_currentState == STATE_WaitingToJoinServer|| m_currentState == STATE_InLobby )
+		//Check for badly timed packets
+		if( m_currentState == STATE_WaitingToJoinServer || m_currentState == STATE_InLobby )
 		{
-			if( packet->type != TYPE_Reset )
+			if( packet->type != TYPE_EnteredRoom )
 			{
-				printf( "WARNING: Received non-reset packet from server when out of game!!\n" );
+				printf( "WARNING: Received invalid packet from server while waiting for room entry!!\n" );
 				continue;
 			}
 		}
+
+		if( m_currentState == STATE_WaitingForGameStart && packet->type != TYPE_Reset )
+		{
+			printf( "WARNING: Received non-reset packet from server while waiting for game to start!!\n" );
+			continue;
+		}
+
+
+		//Exclude old packets
 		if( packet->IsGuaranteed() )
 		{
 			if( packet->number <= m_lastReceivedGuaranteedPacketNumber )
@@ -192,8 +220,11 @@ void GameClient::ProcessPacketQueue()
 				continue;
 		}
 
+
 		HandleIncomingPacket( *packet );
 		
+
+		//Acknowledge and update packet numbers
 		if( packet->IsGuaranteed() )
 		{
 			AcknowledgePacket( *packet );
@@ -236,15 +267,30 @@ void GameClient::ResetGame( const MainPacketType& resetPacket )
 }
 
 //-----------------------------------------------------------------------------------------------
+void GameClient::SendEntityTouchedIt( Entity* touchingEntity, Entity* itEntity )
+{
+	MainPacketType touchPacket;
+	touchPacket.type = TYPE_Touch;
+	touchPacket.number = 0;
+	touchPacket.clientID = itEntity->GetID();
+	touchPacket.timestamp = GetCurrentTimeSeconds();
+
+	touchPacket.data.touch.instigatorID = touchingEntity->GetID();
+	touchPacket.data.touch.receiverID = itEntity->GetID();
+	SendPacketToServer( touchPacket );
+}
+
+//-----------------------------------------------------------------------------------------------
 void GameClient::SendJoinRequestToServer( RoomID roomToJoin )
 {
-	MainPacketType joinPacket;
-	joinPacket.type = TYPE_Join;
-	joinPacket.clientID = 0;
-	joinPacket.number = 0;
+	MainPacketType* joinPacket = new MainPacketType();
+	joinPacket->type = TYPE_Join;
+	joinPacket->clientID = 0;
+	joinPacket->number = 0;
 
-	joinPacket.data.joining.room = roomToJoin;
-	SendPacketToServer( joinPacket );
+	joinPacket->data.joining.room = roomToJoin;
+	SendPacketToServer( *joinPacket );
+	m_packetToResend = joinPacket;
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -262,17 +308,15 @@ void GameClient::SendPacketToServer( const MainPacketType& packet )
 }
 
 //-----------------------------------------------------------------------------------------------
-void GameClient::SendEntityTouchedIt( Entity* touchingEntity, Entity* itEntity )
+void GameClient::SendRoomCreationRequestToServer()
 {
-	MainPacketType touchPacket;
-	touchPacket.type = TYPE_Touch;
-	touchPacket.number = 0;
-	touchPacket.clientID = itEntity->GetID();
-	touchPacket.timestamp = GetCurrentTimeSeconds();
+	MainPacketType* createPacket = new MainPacketType();
+	createPacket->type = TYPE_CreateRoom;
+	createPacket->clientID = 0;
+	createPacket->number = 0;
 
-	touchPacket.data.touch.instigatorID = touchingEntity->GetID();
-	touchPacket.data.touch.receiverID = itEntity->GetID();
-	SendPacketToServer( touchPacket );
+	SendPacketToServer( *createPacket );
+	m_packetToResend = createPacket;
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -360,6 +404,7 @@ GameClient::GameClient( unsigned int screenWidth, unsigned int screenHeight )
 	, m_lastReceivedGuaranteedPacketNumber( 0 )
 	, m_lastReceivedPacketNumber( 0 )
 	, m_keyboard( new Keyboard() )
+	, m_packetToResend( nullptr )
 {
 	m_controllers.push_back( Xbox::Controller::ONE );
 }
@@ -427,7 +472,8 @@ void GameClient::Update( double timeSpentLastFrameSeconds )
 			if( m_currentState == STATE_WaitingToJoinServer )
 			{
 				printf( "Sending join packet to server @%s:%i.\n", m_serverAddress.c_str(), m_serverPort );
-				SendJoinRequestToServer( ROOM_Lobby );
+				if( m_packetToResend == nullptr )
+					SendJoinRequestToServer( ROOM_Lobby );
 			}
 		}
 		break;
@@ -435,19 +481,20 @@ void GameClient::Update( double timeSpentLastFrameSeconds )
 		{
 			ProcessPacketQueue();
 
-			static bool key1WasNotPreviouslyDown = true;
-			static bool key2WasNotPreviouslyDown = true;
-			static bool key3WasNotPreviouslyDown = true;
-			static bool keyNWasNotPreviouslyDown = true;
-
+			if( m_keyboard->KeyIsPressed( Keyboard::NUMBER_0 ) )
+				SendJoinRequestToServer( 0 );
 			if( m_keyboard->KeyIsPressed( Keyboard::NUMBER_1 ) )
-				;
-
-			if( m_currentState == STATE_InLobby )
-			{
-				printf( "Sending touch packet to server @%s:%i.\n", m_serverAddress.c_str(), m_serverPort );
-				//SendJoinRequestToServer();
-			}
+				SendJoinRequestToServer( 1 );
+			if( m_keyboard->KeyIsPressed( Keyboard::NUMBER_2 ) )
+				SendJoinRequestToServer( 2 );
+			if( m_keyboard->KeyIsPressed( Keyboard::NUMBER_3 ) )
+				SendJoinRequestToServer( 3 );
+			if( m_keyboard->KeyIsPressed( Keyboard::NUMBER_4 ) )
+				SendJoinRequestToServer( 4 );
+			if( m_keyboard->KeyIsPressed( Keyboard::NUMBER_5 ) )
+				SendJoinRequestToServer( 5 );
+			if( m_keyboard->KeyIsPressed( Keyboard::N ) )
+				SendRoomCreationRequestToServer();
 		}
 		break;
 	case STATE_InGame:
@@ -466,10 +513,28 @@ void GameClient::Update( double timeSpentLastFrameSeconds )
 				SendEntityTouchedIt( m_localEntity, m_localEntity );
 				m_currentState = STATE_InLobby;
 			}
+
+			ClearResendingPacket();
 		}
 		break;
 	default:
 		break;
 	}
+
+	//Resend "Guaranteed" client packets in situations when we need them.
+	static float secondsSinceLastResentPacket = 0.f;
+	static const float SECONDS_BEFORE_PACKETS_RESENT = 1.f;
+	if( m_packetToResend != nullptr )
+	{
+		if( secondsSinceLastResentPacket > SECONDS_BEFORE_PACKETS_RESENT )
+		{
+			SendPacketToServer( *m_packetToResend );
+			secondsSinceLastResentPacket = 0.f;
+		}
+	}
+	else
+		secondsSinceLastResentPacket = 0.f;
+
+	secondsSinceLastResentPacket += deltaSeconds;
 }
 #pragma endregion

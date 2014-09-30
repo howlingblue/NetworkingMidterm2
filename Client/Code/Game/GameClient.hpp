@@ -24,7 +24,8 @@ class GameClient
 	typedef unsigned char State;
 	static const State STATE_WaitingToJoinServer = 0;
 	static const State STATE_InLobby = 1;
-	static const State STATE_InGame = 2;
+	static const State STATE_WaitingForGameStart = 2;
+	static const State STATE_InGame = 3;
 
 	static const float		 WORLD_WIDTH;
 	static const float		 WORLD_HEIGHT;
@@ -44,6 +45,7 @@ class GameClient
 	std::set< MainPacketType, PacketComparer > m_packetQueue;
 	unsigned int m_lastReceivedPacketNumber;
 	unsigned int m_lastReceivedGuaranteedPacketNumber;
+	MainPacketType*			m_packetToResend;
 
 	State					m_currentState;
 	World*					m_currentWorld;
@@ -56,13 +58,15 @@ class GameClient
 
 	//Game Helper Functions
 	void AcknowledgePacket( const MainPacketType& packet );
+	void ClearResendingPacket();
 	void HandleIncomingPacket( const MainPacketType& packet );
 	void ProcessNetworkQueue();
 	void ProcessPacketQueue();
 	void ResetGame( const MainPacketType& resetPacket );
+	void SendEntityTouchedIt( Entity* touchingEntity, Entity* itEntity );
 	void SendJoinRequestToServer( RoomID roomToJoin = ROOM_Lobby );
 	void SendPacketToServer( const MainPacketType& packet );
-	void SendEntityTouchedIt( Entity* touchingEntity, Entity* itEntity );
+	void SendRoomCreationRequestToServer();
 	void SendUpdatedPositionsToServer( float deltaSeconds );
 	void UpdateEntityFromPacket( const MainPacketType& packet );
 

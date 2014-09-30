@@ -10,6 +10,8 @@ static const PacketType TYPE_Reset = 21;
 static const PacketType TYPE_Touch = 22;
 static const PacketType TYPE_Update = 23;
 static const PacketType TYPE_Join = 24;
+static const PacketType TYPE_CreateRoom = 25;
+static const PacketType TYPE_EnteredRoom = 26;
 
 typedef unsigned char RoomID;
 static const RoomID ROOM_Lobby = 254;
@@ -22,6 +24,18 @@ struct AckPacket
 {
 	unsigned short clientID;
 	unsigned int packetNumber;
+};
+
+//-----------------------------------------------------------------------------------------------
+struct CreateRoomPacket
+{
+	//Nothing (for now).
+};
+
+//-----------------------------------------------------------------------------------------------
+struct EnteredRoomPacket
+{
+	RoomID room;
 };
 
 //-----------------------------------------------------------------------------------------------
@@ -74,6 +88,7 @@ struct MidtermPacket
 	union PacketData
 	{
 		AckPacket acknowledged;
+		EnteredRoomPacket entered;
 		JoinPacket joining;
 		ResetPacket reset;
 		TouchPacket touch;
