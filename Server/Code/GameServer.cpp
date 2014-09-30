@@ -89,7 +89,14 @@ void GameServer::BroadcastGameStateToClients()
 	MainPacketType lobbyUpdatePacket;
 	lobbyUpdatePacket.type = TYPE_Update;
 	lobbyUpdatePacket.clientID = 0;
-	lobbyUpdatePacket.data.updated.numberOfOpenRooms = m_openRooms.size();
+
+	unsigned char numberOfRooms = 0;
+	for( unsigned int i = 0; i < m_openRooms.size(); ++i )
+	{
+		if( m_openRooms[ i ] != nullptr )
+			++numberOfRooms;
+	}
+	lobbyUpdatePacket.data.updated.numberOfOpenRooms = numberOfRooms;
 
 	for( unsigned int i = 0; i < m_clientList.size(); ++i )
 	{
