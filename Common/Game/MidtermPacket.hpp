@@ -38,7 +38,9 @@ struct ResetPacket
 	float xVelocity;
 	float yVelocity;
 	float orientationDegrees;
-	unsigned short itPlayerID;
+
+	float flagXPosition;
+	float flagYPosition;
 };
 
 //-----------------------------------------------------------------------------------------------

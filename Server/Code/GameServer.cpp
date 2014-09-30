@@ -22,8 +22,7 @@ void GameServer::Initialize( const std::string& portNumber )
 	}
 
 	m_serverSocket.SetFunctionsToNonbindingMode();
-
-	m_openRooms.push_back( new World() );
+	CreateNewWorld();
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -84,6 +83,7 @@ ClientInfo* GameServer::AddNewClient( const std::string& ipAddress, unsigned sho
 	newClient->portNumber = portNumber;
 	newClient->currentPacketNumber = 1;
 	newClient->secondsSinceLastReceivedPacket = 0.f;
+	newClient->currentRoom = 0;
 	return newClient;
 }
 
@@ -110,12 +110,29 @@ void GameServer::BroadcastGameStateToClients()
 		for( unsigned int j = 0; j < m_clientList.size(); ++j )
 		{
 			ClientInfo*& receivingClient = m_clientList[ j ];
+			if( receivingClient->currentRoom != broadcastedClient->currentRoom )
+				continue;
 
 			updatePacket.number = receivingClient->currentPacketNumber;
 			++receivingClient->currentPacketNumber;
 			SendPacketToClient( updatePacket, receivingClient );
 		}
 	}
+}
+
+//-----------------------------------------------------------------------------------------------
+unsigned char GameServer::CreateNewWorld()
+{
+	m_openRooms.push_back( new World() );
+	World*& newWorld = m_openRooms.back();
+
+	Vector2 objectivePosition( GetRandomFloatBetweenZeroandOne() * 600.f, 400.f );
+	Entity* objectiveFlag = new Entity();
+	objectiveFlag->SetClientPosition( objectivePosition.x, objectivePosition.y );
+	objectiveFlag->SetServerPosition( objectivePosition.x, objectivePosition.y );
+	newWorld->SetObjective( objectiveFlag );
+
+	return m_openRooms.size() - 1;
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -237,8 +254,16 @@ void GameServer::HandleTouchAndResetGame( const MainPacketType& touchPacket )
 	ClientInfo* itPlayer = FindClientByID( touchPacket.data.touch.receiverID );
 	ClientInfo* touchingPlayer = FindClientByID( touchPacket.data.touch.instigatorID );
 
-	printf( "Player %i touched it player %i! Resetting Game...", touchingPlayer->id, itPlayer->id );
-	m_itPlayerID = touchingPlayer->id;
+	printf( "Player %i touched the flag! Resetting Game...", touchingPlayer->id );
+
+	World* roomWhereTouchOccurred = m_openRooms[ touchingPlayer->currentRoom ];
+
+	Entity* newFlag = new Entity();
+	Vector2 newFlagPosition( GetRandomFloatBetweenZeroandOne() * 600.f, 400.f );
+	newFlag->SetClientPosition( newFlagPosition.x, newFlagPosition.y );
+	newFlag->SetServerPosition( newFlagPosition.x, newFlagPosition.y );
+	roomWhereTouchOccurred->SetObjective( newFlag );
+	
 	for( unsigned int i = 0; i < m_clientList.size(); ++i )
 	{
 		ResetClient( m_clientList[ i ] );
@@ -280,11 +305,6 @@ void GameServer::ResendUnacknowledgedPacketsToClient( ClientInfo* client )
 //-----------------------------------------------------------------------------------------------
 void GameServer::ResetClient( ClientInfo* client )
 {
-	if( m_itPlayerID == 0 ) //it should only be zero if this is our first ever player
-	{
-		m_itPlayerID = client->id;
-	}
-
 	Vector2 startingPosition;
 	startingPosition.x = GetRandomFloatBetweenZeroandOne() * 600.f;
 	if( client->id == m_itPlayerID )
@@ -301,7 +321,10 @@ void GameServer::ResetClient( ClientInfo* client )
 	resetPacket.clientID = client->id;
 	resetPacket.number = client->currentPacketNumber;
 	++client->currentPacketNumber;
-	resetPacket.data.reset.itPlayerID = m_itPlayerID;
+
+	Vector2 flagPosition = m_openRooms[ client->currentRoom ]->GetObjective()->GetCurrentPosition();
+	resetPacket.data.reset.flagXPosition = flagPosition.x;
+	resetPacket.data.reset.flagYPosition = flagPosition.y;
 
 	resetPacket.data.reset.xPosition = startingPosition.x;
 	resetPacket.data.reset.yPosition = startingPosition.y;

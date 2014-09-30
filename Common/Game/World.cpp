@@ -41,30 +41,14 @@ bool World::RemovePlayer( Entity* player )
 
 //-----------------------------------------------------------------------------------------------
 //Returns player pointer if player was found; nullptr otherwise
-Entity* World::FindPlayerTouchingIt()
+Entity* World::FindPlayerTouchingObjective()
 {
-	Entity* itPlayer = nullptr;
-	for( unsigned int i = 0; i < m_players.size(); ++i )
-	{
-		if( m_players[ i ]->IsIt() )
-		{
-			itPlayer = m_players[ i ];
-			break;
-		}
-	}
-
-
-	if( itPlayer == nullptr )
-		return nullptr;
-	Vector2 itPlayerPosition = itPlayer->GetCurrentPosition();
+	Vector2 objectivePosition = m_objective->GetCurrentPosition();
 
 	for( unsigned int i = 0; i < m_players.size(); ++i )
 	{
-		if( m_players[ i ] == itPlayer )
-			continue;
-
-		Vector2 vectorFromItToLocalPlayer = itPlayerPosition - m_players[ i ]->GetCurrentPosition();
-		if( vectorFromItToLocalPlayer.Length() < OBJECTIVE_TOUCH_DISTANCE )
+		Vector2 vectorFromObjectiveToLocalPlayer = objectivePosition - m_players[ i ]->GetCurrentPosition();
+		if( vectorFromObjectiveToLocalPlayer.Length() < OBJECTIVE_TOUCH_DISTANCE )
 		{
 			return m_players[ i ];
 		}
@@ -73,11 +57,26 @@ Entity* World::FindPlayerTouchingIt()
 	return nullptr;
 }
 
+//-----------------------------------------------------------------------------------------------
+bool World::PlayerIsTouchingObjective( Entity* player )
+{
+	Vector2 objectivePosition = m_objective->GetCurrentPosition();
+
+	Vector2 vectorFromObjectiveToPlayer = objectivePosition - player->GetCurrentPosition();
+	if( vectorFromObjectiveToPlayer.Length() < OBJECTIVE_TOUCH_DISTANCE )
+	{
+		return true;
+	}
+	return false;
+}
+
 
 
 //-----------------------------------------------------------------------------------------------
 void World::Render() const
 {
+	m_objective->Render();
+
 	for( unsigned int i = 0; i < m_players.size(); ++i )
 	{
 		m_players[ i ]->Render();
@@ -87,6 +86,8 @@ void World::Render() const
 //-----------------------------------------------------------------------------------------------
 void World::Update( float deltaSeconds )
 {
+	m_objective->Update( deltaSeconds );
+
 	for( unsigned int i = 0; i < m_players.size(); ++i )
 	{
 		m_players[ i ]->Update( deltaSeconds );

@@ -220,7 +220,11 @@ void Game::ResetGame( const MainPacketType& resetPacket )
 		delete m_currentWorld;
 	m_currentWorld = new World();
 
-	m_itEntityID = resetPacket.data.reset.itPlayerID;
+	Entity* flagObjective = new Entity();
+	m_currentWorld->SetObjective( flagObjective );
+	flagObjective->SetClientPosition( resetPacket.data.reset.flagXPosition, resetPacket.data.reset.flagYPosition );
+	flagObjective->SetServerPosition( resetPacket.data.reset.flagXPosition, resetPacket.data.reset.flagYPosition );
+	flagObjective->SetItStatus( true );
 
 	m_localEntity = new Entity();
 	m_currentWorld->AddNewPlayer( m_localEntity );
@@ -446,14 +450,11 @@ void Game::Update( double timeSpentLastFrameSeconds )
 			m_currentWorld->Update( deltaSeconds );
 
 		//check for touches
-		if( m_localEntity->IsIt() )
+		bool localPlayerTouchedFlag = m_currentWorld->PlayerIsTouchingObjective( m_localEntity );
+		if( localPlayerTouchedFlag )
 		{
-			Entity* playerTouchingIt = m_currentWorld->FindPlayerTouchingIt();
-			if( playerTouchingIt != nullptr )
-			{
-				SendEntityTouchedIt( playerTouchingIt, m_localEntity );
-				m_currentState = STATE_WaitingForRestart;
-			}
+			SendEntityTouchedIt( m_localEntity, m_localEntity );
+			m_currentState = STATE_WaitingForRestart;
 		}
 	}
 	else

@@ -15,10 +15,10 @@ public:
 	void Render() const;
 	void Update( float deltaSeconds );
 
-	const Color& GetColor() { return m_color; }
-	float GetCurrentOrientation() { return m_clientOrientationDegrees; }
-	const Vector2& GetCurrentPosition() { return m_clientPosition; }
-	const Vector2& GetCurrentVelocity() { return m_clientVelocity; }
+	const Color& GetColor() const { return m_color; }
+	float GetCurrentOrientation() const { return m_clientOrientationDegrees; }
+	const Vector2& GetCurrentPosition() const { return m_clientPosition; }
+	const Vector2& GetCurrentVelocity() const { return m_clientVelocity; }
 	unsigned short GetID() const { return m_playerID; }
 	bool IsIt() const { return m_isIt; }
 
