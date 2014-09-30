@@ -49,31 +49,28 @@ void GameClient::HandleInput( float deltaSeconds )
 	}
 
 	TankControlWrapper& firstWrapper = m_tankInputs[ 0 ];
-	if ( m_isKeyDown[ 'W' ] || m_isKeyDown[ 'D' ] || m_isKeyDown[ 'S' ] || m_isKeyDown[ 'A' ] ) 
+	if ( m_keyboard->KeyIsPressedOrHeld( Keyboard::W ) || m_keyboard->KeyIsPressedOrHeld( Keyboard::D ) 
+		|| m_keyboard->KeyIsPressedOrHeld( Keyboard::S ) || m_keyboard->KeyIsPressedOrHeld( Keyboard::A ) ) 
 	{
 		firstWrapper.tankMovementMagnitude = 1.0f;
-		firstWrapper.tankMovementHeading = TransformKeyInputIntoAngle( m_isKeyDown[ 'W' ], m_isKeyDown[ 'D' ],
-			m_isKeyDown[ 'S' ], m_isKeyDown[ 'A' ]);
+		firstWrapper.tankMovementHeading = TransformKeyInputIntoAngle( m_keyboard->KeyIsPressedOrHeld( Keyboard::W ), 
+																	   m_keyboard->KeyIsPressedOrHeld( Keyboard::D ),
+																	   m_keyboard->KeyIsPressedOrHeld( Keyboard::S ),
+																	   m_keyboard->KeyIsPressedOrHeld( Keyboard::A ) );
 	}
 
-	if ( m_isKeyDown[ 'I' ] || m_isKeyDown[ 'L' ] || m_isKeyDown[ 'K' ] || m_isKeyDown[ 'J' ] ) 
+	if ( m_keyboard->KeyIsPressedOrHeld( Keyboard::I ) || m_keyboard->KeyIsPressedOrHeld( Keyboard::L ) 
+		|| m_keyboard->KeyIsPressedOrHeld( Keyboard::K ) || m_keyboard->KeyIsPressedOrHeld( Keyboard::J ) ) 
 	{
 		firstWrapper.turretMovementMagnitude = 1.0f;
-		firstWrapper.turretMovementHeading = TransformKeyInputIntoAngle( m_isKeyDown[ 'I' ], m_isKeyDown[ 'L' ],
-			m_isKeyDown[ 'K' ], m_isKeyDown[ 'J' ]);
+		firstWrapper.turretMovementHeading = TransformKeyInputIntoAngle( m_keyboard->KeyIsPressedOrHeld( Keyboard::I ), 
+																		 m_keyboard->KeyIsPressedOrHeld( Keyboard::L ),
+																		 m_keyboard->KeyIsPressedOrHeld( Keyboard::K ),
+																		 m_keyboard->KeyIsPressedOrHeld( Keyboard::J ) );
 	}
 
-	static bool spaceWasNotPreviouslyDown = true;
-	if( m_isKeyDown[ VK_SPACE ] && spaceWasNotPreviouslyDown )
-	{
-		spaceWasNotPreviouslyDown = false;
+	if( m_keyboard->KeyIsPressed( Keyboard::SPACEBAR ) )
 		firstWrapper.isShooting = true;
-	}
-	else if( !m_isKeyDown[ VK_SPACE ] )
-	{
-		spaceWasNotPreviouslyDown = true;
-	}
-
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -176,7 +173,7 @@ void GameClient::ProcessPacketQueue()
 	std::set< MainPacketType, PacketComparer >::iterator packet;
 	for( packet = m_packetQueue.begin(); packet != m_packetQueue.end(); ++packet )
 	{
-		if( m_currentState == STATE_WaitingForStart || m_currentState == STATE_WaitingForRestart )
+		if( m_currentState == STATE_WaitingToJoinServer|| m_currentState == STATE_InLobby )
 		{
 			if( packet->type != TYPE_Reset )
 			{
@@ -236,21 +233,17 @@ void GameClient::ResetGame( const MainPacketType& resetPacket )
 	m_localEntity->SetServerVelocity( resetPacket.data.reset.xVelocity, resetPacket.data.reset.yVelocity );
 	m_localEntity->SetClientOrientation( resetPacket.data.reset.orientationDegrees );
 	m_localEntity->SetServerOrientation( resetPacket.data.reset.orientationDegrees );
-
-	if( m_localEntity->GetID() == m_itEntityID )
-		m_localEntity->SetItStatus( true );
-	else
-		m_localEntity->SetItStatus( false );
-
 }
 
 //-----------------------------------------------------------------------------------------------
-void GameClient::SendJoinRequestToServer()
+void GameClient::SendJoinRequestToServer( RoomID roomToJoin )
 {
 	MainPacketType joinPacket;
 	joinPacket.type = TYPE_Join;
 	joinPacket.clientID = 0;
 	joinPacket.number = 0;
+
+	joinPacket.data.joining.room = roomToJoin;
 	SendPacketToServer( joinPacket );
 }
 
@@ -346,11 +339,6 @@ void GameClient::UpdateEntityFromPacket( const MainPacketType& packet )
 		newEntity->SetClientVelocity( packet.data.updated.xVelocity, packet.data.updated.yVelocity );
 		newEntity->SetClientOrientation( packet.data.updated.orientationDegrees );
 
-		if( newEntity->GetID() == m_itEntityID )
-			newEntity->SetItStatus( true );
-		else
-			newEntity->SetItStatus( false );
-
 		updatingEntity = newEntity;
 		printf( "Adding new player: ID:%i", packet.clientID );
 	}
@@ -366,12 +354,12 @@ void GameClient::UpdateEntityFromPacket( const MainPacketType& packet )
 //-----------------------------------------------------------------------------------------------
 GameClient::GameClient( unsigned int screenWidth, unsigned int screenHeight )
 	: m_screenSize( Vector2( (float) screenWidth, (float) screenHeight ) )
-	, m_isKeyDown( 256, false )
 	, m_tankInputs( 1 )
-	, m_currentState( STATE_WaitingForStart )
+	, m_currentState( STATE_WaitingToJoinServer )
 	, m_currentWorld( nullptr )
 	, m_lastReceivedGuaranteedPacketNumber( 0 )
 	, m_lastReceivedPacketNumber( 0 )
+	, m_keyboard( new Keyboard() )
 {
 	m_controllers.push_back( Xbox::Controller::ONE );
 }
@@ -379,14 +367,14 @@ GameClient::GameClient( unsigned int screenWidth, unsigned int screenHeight )
 //-----------------------------------------------------------------------------------------------
 bool GameClient::HandleKeyDownEvent( unsigned char key )
 {
-	m_isKeyDown[ key ] = true;
+	m_keyboard->SetKeyDown( key );
 	return true;
 }
 
 //-----------------------------------------------------------------------------------------------
 bool GameClient::HandleKeyUpEvent( unsigned char key )
 {
-	m_isKeyDown[ key ] = false;
+	m_keyboard->SetKeyUp( key );
 	return true;
 }
 
@@ -430,42 +418,58 @@ void GameClient::Update( double timeSpentLastFrameSeconds )
 
 	ProcessNetworkQueue();
 
-	if( m_currentState == STATE_WaitingForStart )
+	switch( m_currentState )
 	{
-		ProcessPacketQueue();
-
-		if( m_currentState == STATE_WaitingForStart )
+	case STATE_WaitingToJoinServer:
 		{
-			printf( "Sending join packet to server @%s:%i.\n", m_serverAddress.c_str(), m_serverPort );
-			SendJoinRequestToServer();
+			ProcessPacketQueue();
+
+			if( m_currentState == STATE_WaitingToJoinServer )
+			{
+				printf( "Sending join packet to server @%s:%i.\n", m_serverAddress.c_str(), m_serverPort );
+				SendJoinRequestToServer( ROOM_Lobby );
+			}
 		}
-	}
-	else if( m_currentState == STATE_InGame )
-	{
-		ProcessPacketQueue();
-		HandleInput( deltaSeconds );
-		SendUpdatedPositionsToServer( deltaSeconds );
-
-		if( m_currentWorld != nullptr )
-			m_currentWorld->Update( deltaSeconds );
-
-		//check for touches
-		bool localPlayerTouchedFlag = m_currentWorld->PlayerIsTouchingObjective( m_localEntity );
-		if( localPlayerTouchedFlag )
+		break;
+	case STATE_InLobby:
 		{
-			SendEntityTouchedIt( m_localEntity, m_localEntity );
-			m_currentState = STATE_WaitingForRestart;
-		}
-	}
-	else
-	{
-		ProcessPacketQueue();
+			ProcessPacketQueue();
 
-		if( m_currentState == STATE_WaitingForRestart )
-		{
-			printf( "Sending touch packet to server @%s:%i.\n", m_serverAddress.c_str(), m_serverPort );
-			//SendJoinRequestToServer();
+			static bool key1WasNotPreviouslyDown = true;
+			static bool key2WasNotPreviouslyDown = true;
+			static bool key3WasNotPreviouslyDown = true;
+			static bool keyNWasNotPreviouslyDown = true;
+
+			if( m_keyboard->KeyIsPressed( Keyboard::NUMBER_1 ) )
+				;
+
+			if( m_currentState == STATE_InLobby )
+			{
+				printf( "Sending touch packet to server @%s:%i.\n", m_serverAddress.c_str(), m_serverPort );
+				//SendJoinRequestToServer();
+			}
 		}
+		break;
+	case STATE_InGame:
+		{
+			ProcessPacketQueue();
+			HandleInput( deltaSeconds );
+			SendUpdatedPositionsToServer( deltaSeconds );
+
+			if( m_currentWorld != nullptr )
+				m_currentWorld->Update( deltaSeconds );
+
+			//check for touches
+			bool localPlayerTouchedFlag = m_currentWorld->PlayerIsTouchingObjective( m_localEntity );
+			if( localPlayerTouchedFlag )
+			{
+				SendEntityTouchedIt( m_localEntity, m_localEntity );
+				m_currentState = STATE_InLobby;
+			}
+		}
+		break;
+	default:
+		break;
 	}
 }
 #pragma endregion

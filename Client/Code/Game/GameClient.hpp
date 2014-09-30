@@ -6,6 +6,7 @@
 #include <set>
 #include <vector>
 #include "../../../Common/Engine/Color.hpp"
+#include "../../../Common/Engine/Keyboard.hpp"
 #include "../../../Common/Engine/Texture.hpp"
 #include "../../../Common/Engine/UDPSocket.hpp"
 #include "../../../Common/Engine/Vector2.hpp"
@@ -21,10 +22,9 @@ typedef MidtermPacket MainPacketType;
 class GameClient
 {
 	typedef unsigned char State;
-	static const State STATE_WaitingForStart = 0;
-	static const State STATE_InGame = 1;
-	static const State STATE_WaitingForRestart = 2;
-	static const State STATE_InLobby = 3;
+	static const State STATE_WaitingToJoinServer = 0;
+	static const State STATE_InLobby = 1;
+	static const State STATE_InGame = 2;
 
 	static const float		 WORLD_WIDTH;
 	static const float		 WORLD_HEIGHT;
@@ -34,7 +34,7 @@ class GameClient
 	static const float		 SECONDS_TO_WAIT_BEFORE_RESENDS;
 
 	Vector2								m_screenSize;
-	std::vector< bool >					m_isKeyDown;
+	Keyboard*							m_keyboard;
 	std::vector< Xbox::Controller >		m_controllers;
 	std::vector< TankControlWrapper >	m_tankInputs;
 
@@ -45,7 +45,6 @@ class GameClient
 	unsigned int m_lastReceivedPacketNumber;
 	unsigned int m_lastReceivedGuaranteedPacketNumber;
 
-	unsigned short			m_itEntityID;
 	State					m_currentState;
 	World*					m_currentWorld;
 	Entity*					m_localEntity;
@@ -61,7 +60,7 @@ class GameClient
 	void ProcessNetworkQueue();
 	void ProcessPacketQueue();
 	void ResetGame( const MainPacketType& resetPacket );
-	void SendJoinRequestToServer();
+	void SendJoinRequestToServer( RoomID roomToJoin = ROOM_Lobby );
 	void SendPacketToServer( const MainPacketType& packet );
 	void SendEntityTouchedIt( Entity* touchingEntity, Entity* itEntity );
 	void SendUpdatedPositionsToServer( float deltaSeconds );
