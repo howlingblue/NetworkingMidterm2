@@ -18,6 +18,7 @@ public:
 	Entity* FindPlayerWithID( unsigned short targetID );
 	bool RemovePlayer( Entity* player );
 
+	unsigned int GetNumberOfPlayers() const { return m_players.size(); }
 	const Entity* GetObjective() { return m_objective; }
 	Entity* FindPlayerTouchingObjective();
 	bool PlayerIsTouchingObjective( Entity* player );

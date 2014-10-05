@@ -19,10 +19,10 @@ public:
 	float GetCurrentOrientation() const { return m_clientOrientationDegrees; }
 	const Vector2& GetCurrentPosition() const { return m_clientPosition; }
 	const Vector2& GetCurrentVelocity() const { return m_clientVelocity; }
-	unsigned short GetID() const { return m_playerID; }
+	unsigned char GetID() const { return m_playerID; }
 	bool IsIt() const { return m_isIt; }
 
-	void SetID( unsigned short newID ) { m_playerID = newID; }
+	void SetID( unsigned char newID ) { m_playerID = newID; }
 	void SetItStatus( bool itStatus ) { m_isIt = itStatus; }
 
 	void SetClientPosition( float x, float y );
@@ -34,7 +34,7 @@ public:
 	void SetServerOrientation( float orientationDegrees ) { m_serverOrientationDegrees = orientationDegrees; }
 
 private:
-	unsigned short m_playerID;
+	unsigned char m_playerID;
 	bool m_isIt;
 	Color m_color;
 	Vector2 m_clientPosition;

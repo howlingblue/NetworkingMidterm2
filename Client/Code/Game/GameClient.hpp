@@ -11,12 +11,12 @@
 #include "../../../Common/Engine/UDPSocket.hpp"
 #include "../../../Common/Engine/Vector2.hpp"
 #include "../../../Common/Engine/Xbox.hpp"
-#include "../../../Common/Game/MidtermPacket.hpp"
+#include "../../../Common/Game/FinalPacket.hpp"
 #include "../../../Common/Game/Entity.hpp"
 #include "../../../Common/Game/World.hpp"
 #include "TankControlWrapper.h"
 
-typedef MidtermPacket MainPacketType;
+typedef FinalPacket MainPacketType;
 
 //-----------------------------------------------------------------------------------------------
 class GameClient
@@ -42,16 +42,16 @@ class GameClient
 	std::string				m_serverAddress;
 	unsigned short			m_serverPort;
 	Network::UDPSocket		m_outputSocket;
-	std::set< MainPacketType, PacketComparer > m_packetQueue;
-	unsigned int m_lastReceivedPacketNumber;
-	unsigned int m_lastReceivedGuaranteedPacketNumber;
+	unsigned int			m_lastReceivedPacketNumber;
+	unsigned int			m_lastReceivedGuaranteedPacketNumber;
 	MainPacketType*			m_packetToResend;
+	std::set< MainPacketType, FinalPacketComparer > m_packetQueue;
 
-	State					m_currentState;
-	World*					m_currentWorld;
-	unsigned short			m_myClientID;
-	Entity*					m_localEntity;
-	float					m_secondsSinceLastSentUpdate;
+	State			m_currentState;
+	World*			m_currentWorld;
+	ClientID		m_myClientID;
+	Entity*			m_localEntity;
+	float			m_secondsSinceLastSentUpdate;
 
 	//Input Functions
 	void HandleInput( float deltaSeconds );
@@ -61,12 +61,14 @@ class GameClient
 	void AcknowledgePacket( const MainPacketType& packet );
 	void ClearResendingPacket();
 	void HandleIncomingPacket( const MainPacketType& packet );
+	void HandleServerAcknowledgement( const MainPacketType& packet );
+	void HandleServerRefusal( const MainPacketType& packet );
 	void ProcessNetworkQueue();
 	void ProcessPacketQueue();
 	void ResetGame( const MainPacketType& resetPacket );
 	void SendEntityTouchedIt( Entity* touchingEntity, Entity* itEntity );
 	void SendJoinRequestToServer( RoomID roomToJoin = ROOM_Lobby );
-	void SendPacketToServer( const MainPacketType& packet );
+	void SendPacketToServer( MainPacketType& packet );
 	void SendRoomCreationRequestToServer();
 	void SendUpdatedPositionsToServer( float deltaSeconds );
 	void UpdateEntityFromPacket( const MainPacketType& packet );

@@ -111,12 +111,13 @@ float GameClient::TransformKeyInputIntoAngle( bool upKeyIsPressed, bool rightKey
 void GameClient::AcknowledgePacket(  const MainPacketType& packet )
 {
 	MainPacketType ackPacket;
-	ackPacket.type = TYPE_Acknowledgement;
+	ackPacket.type = TYPE_Ack;
 	ackPacket.clientID = m_localEntity->GetID();
 	ackPacket.number = 0;
+	ackPacket.timestamp = packet.timestamp;
 
-	ackPacket.data.acknowledged.clientID = packet.clientID;
-	ackPacket.data.acknowledged.packetNumber = packet.number;
+	ackPacket.data.acknowledged.type = packet.type;
+	ackPacket.data.acknowledged.number = packet.number;
 	SendPacketToServer( ackPacket );
 }
 
@@ -132,29 +133,74 @@ void GameClient::HandleIncomingPacket( const MainPacketType& packet )
 {
 	switch( packet.type )
 	{
-	case TYPE_EnteredRoom:
+	case TYPE_Ack:
 		{
-			if( packet.data.entered.room == ROOM_Lobby )
-				m_currentState = STATE_InLobby;
-			else
-				m_currentState = STATE_WaitingForGameStart;
-
-			m_myClientID = packet.clientID;
+			HandleServerAcknowledgement( packet );
 			ClearResendingPacket();
 		}
 		break;
-	case TYPE_Reset:
-		ResetGame( packet );
-		m_currentState = STATE_InGame;
-		ClearResendingPacket();
+	case TYPE_Nack:
+		{
+			HandleServerRefusal( packet );
+			ClearResendingPacket();
+		}
 		break;
-	case TYPE_Update:
+	case TYPE_GameUpdate:
 		if( m_currentState == STATE_InGame )
 			UpdateEntityFromPacket( packet );
-		else if( m_currentState == STATE_InLobby )
-			UpdateLobbyStatus( packet );
 		else
-			printf( "WARNING: Received update while in non-updatable state!\n" );
+			printf( "WARNING: Received game update while not in-game!\n" );
+		break;
+	case TYPE_LobbyUpdate:
+		if( m_currentState == STATE_InLobby )
+			UpdateLobbyStatus( packet );
+		break;
+	default:
+		break;
+	}
+}
+
+//-----------------------------------------------------------------------------------------------
+void GameClient::HandleServerAcknowledgement( const MainPacketType& packet )
+{
+	if( ( packet.data.acknowledged.type != m_packetToResend->type ) ||
+		( packet.data.acknowledged.number != m_packetToResend->number ) )
+	{
+		//We aren't getting acknowledgment of what we are expecting
+		return;
+	}
+
+	switch( m_packetToResend->type )
+	{
+	case TYPE_JoinRoom:
+		{
+			if( m_packetToResend->data.joining.room == ROOM_Lobby )
+				m_currentState = STATE_InLobby;
+			else
+				m_currentState = STATE_WaitingForGameStart;
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+//-----------------------------------------------------------------------------------------------
+void GameClient::HandleServerRefusal( const MainPacketType& packet )
+{
+	if( ( packet.data.acknowledged.type != m_packetToResend->type ) ||
+		( packet.data.acknowledged.number != m_packetToResend->number ) )
+	{
+		//We aren't getting acknowledgment of what we are expecting
+		return;
+	}
+
+	switch( m_packetToResend->type )
+	{
+	case TYPE_JoinRoom:
+		{
+
+		}
 		break;
 	default:
 		break;
@@ -194,23 +240,17 @@ void GameClient::ProcessNetworkQueue()
 //-----------------------------------------------------------------------------------------------
 void GameClient::ProcessPacketQueue()
 {
-	std::set< MainPacketType, PacketComparer >::iterator packet;
+	std::set< MainPacketType, FinalPacketComparer >::iterator packet;
 	for( packet = m_packetQueue.begin(); packet != m_packetQueue.end(); ++packet )
 	{
 		//Check for badly timed packets
 		if( m_currentState == STATE_WaitingToJoinServer || m_currentState == STATE_InLobby )
 		{
-			if( packet->type != TYPE_EnteredRoom && packet->type != TYPE_Update )
+			if( packet->type != TYPE_Ack && packet->type != TYPE_LobbyUpdate )
 			{
 				printf( "WARNING: Received invalid packet from server while waiting for room entry!!\n" );
 				continue;
 			}
-		}
-
-		if( m_currentState == STATE_WaitingForGameStart && packet->type != TYPE_Reset )
-		{
-			printf( "WARNING: Received non-reset packet from server while waiting for game to start!!\n" );
-			continue;
 		}
 
 
@@ -248,49 +288,49 @@ void GameClient::ProcessPacketQueue()
 }
 
 //-----------------------------------------------------------------------------------------------
-void GameClient::ResetGame( const MainPacketType& resetPacket )
+void GameClient::ResetGame( const MainPacketType& )
 {
-	if( m_currentWorld != nullptr )
-		delete m_currentWorld;
-	m_currentWorld = new World();
-
-	Entity* flagObjective = new Entity();
-	m_currentWorld->SetObjective( flagObjective );
-	flagObjective->SetClientPosition( resetPacket.data.reset.flagXPosition, resetPacket.data.reset.flagYPosition );
-	flagObjective->SetServerPosition( resetPacket.data.reset.flagXPosition, resetPacket.data.reset.flagYPosition );
-	flagObjective->SetItStatus( true );
-
-	m_localEntity = new Entity();
-	m_currentWorld->AddNewPlayer( m_localEntity );
-	m_localEntity->SetID( resetPacket.clientID );
-
-	m_localEntity->SetClientPosition( resetPacket.data.reset.xPosition, resetPacket.data.reset.yPosition );
-	m_localEntity->SetServerPosition( resetPacket.data.reset.xPosition, resetPacket.data.reset.yPosition );
-	m_localEntity->SetClientVelocity( resetPacket.data.reset.xVelocity, resetPacket.data.reset.yVelocity );
-	m_localEntity->SetServerVelocity( resetPacket.data.reset.xVelocity, resetPacket.data.reset.yVelocity );
-	m_localEntity->SetClientOrientation( resetPacket.data.reset.orientationDegrees );
-	m_localEntity->SetServerOrientation( resetPacket.data.reset.orientationDegrees );
+// 	if( m_currentWorld != nullptr )
+// 		delete m_currentWorld;
+// 	m_currentWorld = new World();
+// 
+// 	Entity* flagObjective = new Entity();
+// 	m_currentWorld->SetObjective( flagObjective );
+// 	flagObjective->SetClientPosition( resetPacket.data.reset.flagXPosition, resetPacket.data.reset.flagYPosition );
+// 	flagObjective->SetServerPosition( resetPacket.data.reset.flagXPosition, resetPacket.data.reset.flagYPosition );
+// 	flagObjective->SetItStatus( true );
+// 
+// 	m_localEntity = new Entity();
+// 	m_currentWorld->AddNewPlayer( m_localEntity );
+// 	m_localEntity->SetID( resetPacket.clientID );
+// 
+// 	m_localEntity->SetClientPosition( resetPacket.data.reset.xPosition, resetPacket.data.reset.yPosition );
+// 	m_localEntity->SetServerPosition( resetPacket.data.reset.xPosition, resetPacket.data.reset.yPosition );
+// 	m_localEntity->SetClientVelocity( resetPacket.data.reset.xVelocity, resetPacket.data.reset.yVelocity );
+// 	m_localEntity->SetServerVelocity( resetPacket.data.reset.xVelocity, resetPacket.data.reset.yVelocity );
+// 	m_localEntity->SetClientOrientation( resetPacket.data.reset.orientationDegrees );
+// 	m_localEntity->SetServerOrientation( resetPacket.data.reset.orientationDegrees );
 }
 
 //-----------------------------------------------------------------------------------------------
-void GameClient::SendEntityTouchedIt( Entity* touchingEntity, Entity* itEntity )
+void GameClient::SendEntityTouchedIt( Entity*, Entity* )
 {
-	MainPacketType touchPacket;
-	touchPacket.type = TYPE_Touch;
-	touchPacket.number = 0;
-	touchPacket.clientID = itEntity->GetID();
-	touchPacket.timestamp = GetCurrentTimeSeconds();
-
-	touchPacket.data.touch.instigatorID = touchingEntity->GetID();
-	touchPacket.data.touch.receiverID = itEntity->GetID();
-	SendPacketToServer( touchPacket );
+// 	MainPacketType touchPacket;
+// 	touchPacket.type = TYPE_Touch;
+// 	touchPacket.number = 0;
+// 	touchPacket.clientID = itEntity->GetID();
+// 	touchPacket.timestamp = GetCurrentTimeSeconds();
+// 
+// 	touchPacket.data.touch.instigatorID = touchingEntity->GetID();
+// 	touchPacket.data.touch.receiverID = itEntity->GetID();
+// 	SendPacketToServer( touchPacket );
 }
 
 //-----------------------------------------------------------------------------------------------
 void GameClient::SendJoinRequestToServer( RoomID roomToJoin )
 {
 	MainPacketType* joinPacket = new MainPacketType();
-	joinPacket->type = TYPE_Join;
+	joinPacket->type = TYPE_JoinRoom;
 	joinPacket->clientID = 0;
 	joinPacket->number = 0;
 
@@ -300,11 +340,11 @@ void GameClient::SendJoinRequestToServer( RoomID roomToJoin )
 }
 
 //-----------------------------------------------------------------------------------------------
-void GameClient::SendPacketToServer( const MainPacketType& packet )
+void GameClient::SendPacketToServer( MainPacketType& packet )
 {
 	packet.timestamp = GetCurrentTimeSeconds();
 
-	int sendResult = m_outputSocket.SendBuffer( ( char* )&packet, sizeof( MidtermPacket ), m_serverAddress.c_str(), m_serverPort );
+	int sendResult = m_outputSocket.SendBuffer( ( char* )&packet, sizeof( MainPacketType ), m_serverAddress.c_str(), m_serverPort );
 	if( sendResult < 0 )
 	{
 		int errorCode = WSAGetLastError();
@@ -330,7 +370,7 @@ void GameClient::SendUpdatedPositionsToServer( float deltaSeconds )
 {
 	Vector2 currentPlayerPosition;
 	MainPacketType updatePacket;
-	updatePacket.type = TYPE_Update;
+	updatePacket.type = TYPE_GameUpdate;
 	updatePacket.number = 0;
 	updatePacket.clientID = m_localEntity->GetID();
 	updatePacket.timestamp = GetCurrentTimeSeconds();
@@ -347,11 +387,11 @@ void GameClient::SendUpdatedPositionsToServer( float deltaSeconds )
 		Vector2 currentPosition = m_localEntity->GetCurrentPosition();
 		currentPosition.x += deltaVelocity.x;
 		currentPosition.y += deltaVelocity.y;
-		updatePacket.data.updated.xPosition = currentPosition.x;
-		updatePacket.data.updated.yPosition = currentPosition.y;
-		updatePacket.data.updated.xVelocity = deltaVelocity.x;
-		updatePacket.data.updated.yVelocity = deltaVelocity.y;
-		updatePacket.data.updated.orientationDegrees = m_tankInputs[ 0 ].tankMovementHeading;
+		updatePacket.data.updatedGame.xPosition = currentPosition.x;
+		updatePacket.data.updatedGame.yPosition = currentPosition.y;
+		updatePacket.data.updatedGame.xVelocity = deltaVelocity.x;
+		updatePacket.data.updatedGame.yVelocity = deltaVelocity.y;
+		updatePacket.data.updatedGame.orientationDegrees = m_tankInputs[ 0 ].tankMovementHeading;
 
 		SendPacketToServer( updatePacket );
 		m_secondsSinceLastSentUpdate = 0.f;
@@ -359,14 +399,14 @@ void GameClient::SendUpdatedPositionsToServer( float deltaSeconds )
 	else if( m_secondsSinceLastSentUpdate > MAX_SECONDS_BETWEEN_PACKET_SENDS )
 	{
 		Vector2 currentPosition = m_localEntity->GetCurrentPosition();
-		updatePacket.data.updated.xPosition = currentPosition.x;
-		updatePacket.data.updated.yPosition = currentPosition.y;
+		updatePacket.data.updatedGame.xPosition = currentPosition.x;
+		updatePacket.data.updatedGame.yPosition = currentPosition.y;
 		Vector2 currentVelocity = m_localEntity->GetCurrentVelocity();
-		updatePacket.data.updated.xVelocity = currentVelocity.x;
-		updatePacket.data.updated.yVelocity = currentVelocity.y;
+		updatePacket.data.updatedGame.xVelocity = currentVelocity.x;
+		updatePacket.data.updatedGame.yVelocity = currentVelocity.y;
 
 		float currentOrientation = m_localEntity->GetCurrentOrientation();
-		updatePacket.data.updated.orientationDegrees = currentOrientation;
+		updatePacket.data.updatedGame.orientationDegrees = currentOrientation;
 
 		SendPacketToServer( updatePacket );
 		m_secondsSinceLastSentUpdate = 0.f;
@@ -385,17 +425,17 @@ void GameClient::UpdateEntityFromPacket( const MainPacketType& packet )
 		Entity* newEntity = new Entity();
 		m_currentWorld->AddNewPlayer( newEntity );
 		newEntity->SetID( packet.clientID );
-		newEntity->SetClientPosition( packet.data.updated.xPosition, packet.data.updated.yPosition );
-		newEntity->SetClientVelocity( packet.data.updated.xVelocity, packet.data.updated.yVelocity );
-		newEntity->SetClientOrientation( packet.data.updated.orientationDegrees );
+		newEntity->SetClientPosition( packet.data.updatedGame.xPosition, packet.data.updatedGame.yPosition );
+		newEntity->SetClientVelocity( packet.data.updatedGame.xVelocity, packet.data.updatedGame.yVelocity );
+		newEntity->SetClientOrientation( packet.data.updatedGame.orientationDegrees );
 
 		updatingEntity = newEntity;
 		printf( "Adding new player: ID:%i", packet.clientID );
 	}
 
-	updatingEntity->SetServerPosition( packet.data.updated.xPosition, packet.data.updated.yPosition );
-	updatingEntity->SetServerVelocity( packet.data.updated.xVelocity, packet.data.updated.yVelocity );
-	updatingEntity->SetServerOrientation( packet.data.updated.orientationDegrees );
+	updatingEntity->SetServerPosition( packet.data.updatedGame.xPosition, packet.data.updatedGame.yPosition );
+	updatingEntity->SetServerVelocity( packet.data.updatedGame.xVelocity, packet.data.updatedGame.yVelocity );
+	updatingEntity->SetServerOrientation( packet.data.updatedGame.orientationDegrees );
 }
 #pragma endregion
 
@@ -473,14 +513,11 @@ void GameClient::Update( double timeSpentLastFrameSeconds )
 	{
 	case STATE_WaitingToJoinServer:
 		{
-			ProcessPacketQueue();
+			printf( "Sending join packet to server @%s:%i.\n", m_serverAddress.c_str(), m_serverPort );
+			if( m_packetToResend == nullptr )
+				SendJoinRequestToServer( ROOM_Lobby );
 
-			if( m_currentState == STATE_WaitingToJoinServer )
-			{
-				printf( "Sending join packet to server @%s:%i.\n", m_serverAddress.c_str(), m_serverPort );
-				if( m_packetToResend == nullptr )
-					SendJoinRequestToServer( ROOM_Lobby );
-			}
+			ProcessPacketQueue();
 		}
 		break;
 	case STATE_InLobby:
@@ -568,12 +605,15 @@ void GameClient::Update( double timeSpentLastFrameSeconds )
 //-----------------------------------------------------------------------------------------------
 void GameClient::UpdateLobbyStatus( const MainPacketType& packet )
 {
-	printf( "IN LOBBY - Number of Open Rooms: %i\n", packet.data.updated.numberOfOpenRooms );
+	printf( "IN LOBBY:\n" );
 
-	printf( "\tPress 'N' to create a new room.\n" );
-	for( unsigned int i = 0; i < packet.data.updated.numberOfOpenRooms && i < 10; ++i )
+	for( unsigned int i = 0; i < 8; ++i )
 	{
-		printf( "\tPress '%i' to enter room %i.\n", i, i );
+		printf( "\t Room %i: ", i + i );
+		if( packet.data.updatedLobby.playersInRoomNumber[ i ] == 0 )
+			printf( "EMPTY - Press '%i' to create this room.\n", i + i );
+		else
+			printf( "%i players - Press '%i' to create this room.\n", packet.data.updatedLobby.playersInRoomNumber[ i ], i + i );
 	}
 }
 #pragma endregion
