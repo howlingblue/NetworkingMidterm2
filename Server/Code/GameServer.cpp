@@ -67,6 +67,37 @@ void GameServer::Update( float deltaSeconds )
 
 #pragma region Server Helper Functions
 //-----------------------------------------------------------------------------------------------
+void GameServer::AcknowledgePacketFromClient( const MainPacketType& packet, ClientInfo* client )
+{
+	MainPacketType ackPacket;
+	ackPacket.type = TYPE_Ack;
+	ackPacket.clientID = client->id;
+	ackPacket.number = client->GetNextPacketNumber();
+	ackPacket.timestamp = GetCurrentTimeSeconds();
+
+	ackPacket.data.acknowledged.type = packet.type;
+	ackPacket.data.acknowledged.number = packet.number;
+
+	SendPacketToClient( ackPacket, client );
+}
+
+//-----------------------------------------------------------------------------------------------
+void GameServer::RefusePacketFromClient( const MainPacketType& packet, ClientInfo* client, ErrorCode errorCode )
+{
+	MainPacketType nackPacket;
+	nackPacket.type = TYPE_Nack;
+	nackPacket.clientID = client->id;
+	nackPacket.number = client->GetNextPacketNumber();
+	nackPacket.timestamp = GetCurrentTimeSeconds();
+
+	nackPacket.data.refused.type = packet.type;
+	nackPacket.data.refused.type = packet.number;
+	nackPacket.data.refused.errorCode = errorCode;
+
+	SendPacketToClient( nackPacket, client );
+}
+
+//-----------------------------------------------------------------------------------------------
 ClientInfo* GameServer::AddNewClient( const std::string& ipAddress, unsigned short portNumber )
 {
 	m_clientList.push_back( new ClientInfo() );
@@ -87,16 +118,16 @@ ClientInfo* GameServer::AddNewClient( const std::string& ipAddress, unsigned sho
 void GameServer::BroadcastGameStateToClients()
 {
 	MainPacketType lobbyUpdatePacket;
-	lobbyUpdatePacket.type = TYPE_Update;
-	lobbyUpdatePacket.clientID = 0;
+	lobbyUpdatePacket.type = TYPE_LobbyUpdate;
+	lobbyUpdatePacket.clientID = ID_None;
 
-	unsigned char numberOfRooms = 0;
-	for( unsigned int i = 0; i < m_openRooms.size(); ++i )
+	for( unsigned int i = 0; i < MAXIMUM_NUMBER_OF_GAME_ROOMS; ++i )
 	{
-		if( m_openRooms[ i ] != nullptr )
-			++numberOfRooms;
+		if( m_openRooms[ i ] == nullptr )
+			lobbyUpdatePacket.data.updatedLobby.playersInRoomNumber[ i ] = 0;
+		else
+			lobbyUpdatePacket.data.updatedLobby.playersInRoomNumber[ i ] = m_openRooms[ i ]->GetNumberOfPlayers();
 	}
-	lobbyUpdatePacket.data.updated.numberOfOpenRooms = numberOfRooms;
 
 	for( unsigned int i = 0; i < m_clientList.size(); ++i )
 	{
@@ -110,17 +141,17 @@ void GameServer::BroadcastGameStateToClients()
 		}
 
 		MainPacketType updatePacket;
-		updatePacket.type = TYPE_Update;
+		updatePacket.type = TYPE_GameUpdate;
 		updatePacket.clientID = broadcastedClient->id;
 
 		Vector2 currentPosition = broadcastedClient->ownedPlayer->GetCurrentPosition();
-		updatePacket.data.updated.xPosition = currentPosition.x;
-		updatePacket.data.updated.yPosition = currentPosition.y;
+		updatePacket.data.updatedGame.xPosition = currentPosition.x;
+		updatePacket.data.updatedGame.yPosition = currentPosition.y;
 
 		Vector2 currentVelocity = broadcastedClient->ownedPlayer->GetCurrentVelocity();
-		updatePacket.data.updated.xVelocity = currentVelocity.x;
-		updatePacket.data.updated.yVelocity = currentVelocity.y;
-		updatePacket.data.updated.orientationDegrees = broadcastedClient->ownedPlayer->GetCurrentOrientation();
+		updatePacket.data.updatedGame.xVelocity = currentVelocity.x;
+		updatePacket.data.updatedGame.yVelocity = currentVelocity.y;
+		updatePacket.data.updatedGame.orientationDegrees = broadcastedClient->ownedPlayer->GetCurrentOrientation();
 
 		for( unsigned int j = 0; j < m_clientList.size(); ++j )
 		{
@@ -153,41 +184,37 @@ void GameServer::CloseRoom( RoomID room )
 }
 
 //-----------------------------------------------------------------------------------------------
-void GameServer::CreateNewRoomForClient( ClientInfo* client )
+ErrorCode GameServer::CreateNewRoomForClient( RoomID room, ClientInfo* client )
 {
+	if( room == ROOM_Lobby || room > MAXIMUM_NUMBER_OF_GAME_ROOMS )
+		return ERROR_BadRoomID;
+
 	if( client->ownsCurrentRoom )
 	{
 		printf( "WARNING: Client with ID %i tried to create a room even though it's a room owner!\n", client->id );
-		//FIX: Let client know it's creating rooms even though it already has one
-		return;
+		//CHANGE: Client should be allowed to create a room; previous room closes
+		return ERROR_Unknown;
 	}
-	unsigned char newRoomNumber = CreateNewWorld();
-	printf( "Creating room %i for client ID %i...\n", newRoomNumber, client->id );
 
-	MoveClientToRoom( client, newRoomNumber, true );
+	printf( "Attempting to create room %i for client ID %i...\n", room, client->id );
+	ErrorCode creationError = CreateNewWorldAtRoomID( room );
+	if( creationError != ERROR_None )
+		return creationError;
+
+	MoveClientToRoom( client, room, true );
+	return ERROR_None;
 }
 
 //-----------------------------------------------------------------------------------------------
-RoomID GameServer::CreateNewWorld()
+ErrorCode GameServer::CreateNewWorldAtRoomID( RoomID id )
 {
-	World* newWorld = nullptr;
-	RoomID newWorldID = ROOM_None;
-	for( unsigned int i = 0; i < m_openRooms.size(); ++i )
+	if( GetRoomWithID( id ) != nullptr )
 	{
-		if( m_openRooms[ i ] == nullptr )
-		{
-			m_openRooms[ i ] = new World();
-			newWorld = m_openRooms[ i ];
-			newWorldID = i;
-			break;
-		}
+		return ERROR_RoomFull;
 	}
-	if( newWorld == nullptr )
-	{
-		m_openRooms.push_back( new World() );
-		newWorld = m_openRooms.back();
-		newWorldID = m_openRooms.size() - 1;
-	}
+
+	World* newWorld = new World();
+	m_openRooms[ id - 1 ] = newWorld; //remember, room ids start at 1!
 
 	Vector2 objectivePosition( GetRandomFloatBetweenZeroandOne() * 600.f, 400.f );
 	Entity* objectiveFlag = new Entity();
@@ -195,7 +222,7 @@ RoomID GameServer::CreateNewWorld()
 	objectiveFlag->SetServerPosition( objectivePosition.x, objectivePosition.y );
 	newWorld->SetObjective( objectiveFlag );
 
-	return newWorldID;
+	return ERROR_None;
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -231,15 +258,20 @@ ClientInfo* GameServer::FindClientByID( unsigned short clientID )
 }
 
 //-----------------------------------------------------------------------------------------------
-void GameServer::MoveClientToRoom( ClientInfo* client, RoomID room, bool ownsRoom )
+ErrorCode GameServer::MoveClientToRoom( ClientInfo* client, RoomID room, bool ownsRoom )
 {
-	if( room >= m_openRooms.size() && room < ROOM_Lobby )
+	if( room > MAXIMUM_NUMBER_OF_GAME_ROOMS || room == ROOM_None )
 	{
 		printf( "WARNING: Client with ID %i is trying to join a room that doesn't exist!\n", client->id );
-		return;
+		return ERROR_BadRoomID;
+	}
+	else if( room != ROOM_Lobby && GetRoomWithID( room ) == nullptr )
+	{
+		printf( "WARNING: Client with ID %i tried to join an empty room!\n", client->id );
+		return ERROR_RoomEmpty;
 	}
 
-	if( client->currentRoom < ROOM_Lobby ) //If it's a room that contains a world
+	if( client->currentRoom != ROOM_None && client->currentRoom != ROOM_Lobby ) //If it's a room that contains a world
 	{
 		m_openRooms[ client->currentRoom ]->RemovePlayer( client->ownedPlayer );
 		client->ownedPlayer = nullptr;
@@ -250,21 +282,13 @@ void GameServer::MoveClientToRoom( ClientInfo* client, RoomID room, bool ownsRoo
 	client->currentRoom = room;
 	client->ownsCurrentRoom = ownsRoom;
 
-	MainPacketType newRoomPacket;
-	newRoomPacket.type = TYPE_EnteredRoom;
-	newRoomPacket.clientID = client->id;
-	newRoomPacket.data.entered.room = room;
-
-	newRoomPacket.number = client->currentPacketNumber;
-	++client->currentPacketNumber;
-	SendPacketToClient( newRoomPacket, client );
-
 	if( client->currentRoom < ROOM_Lobby )
 	{
 		client->ownedPlayer = new Entity();
 		m_openRooms[ client->currentRoom ]->AddNewPlayer( client->ownedPlayer );
 		ResetClient( client );
 	}
+	return ERROR_None;
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -311,7 +335,7 @@ void GameServer::ProcessNetworkQueue()
 		receivedClient = FindClientByAddress( receivedIPAddress, receivedPort );
 		if( receivedClient == nullptr )
 		{
-			if( receivedPacket.type != TYPE_Join )
+			if( receivedPacket.type != TYPE_JoinRoom )
 			{
 				printf( "WARNING: Received non-join packet from an unknown client at %s:%i.\n", receivedIPAddress.c_str(), receivedPort );
 				continue;
@@ -323,28 +347,58 @@ void GameServer::ProcessNetworkQueue()
 			}
 
 			receivedClient = AddNewClient( receivedIPAddress, receivedPort );
-			MoveClientToRoom( receivedClient, receivedPacket.data.joining.room, false );
-			printf( "Received join packet from %s:%i. Added as client number %i.\n", receivedIPAddress.c_str(), receivedPort, receivedClient->id );
+			ErrorCode moveError = MoveClientToRoom( receivedClient, receivedPacket.data.joining.room, false );
+			if( moveError == ERROR_None )
+			{
+				printf( "Received join packet from %s:%i. Added as client number %i.\n", receivedIPAddress.c_str(), receivedPort, receivedClient->id );
+				AcknowledgePacketFromClient( receivedPacket, receivedClient );
+			}
+			else
+			{
+				printf( "Refused join request from %s:%i. Error Code: %i.\n", receivedIPAddress.c_str(), receivedPort, moveError );
+				RefusePacketFromClient( receivedPacket, receivedClient, moveError );
+			}
 			continue;
 		}
 		
 		printf( "Received packet from %s:%i.\n", receivedIPAddress.c_str(), receivedPort );
 		switch( receivedPacket.type )
 		{
-		case TYPE_Acknowledgement:
+		case TYPE_Ack:
 			RemoveAcknowledgedPacketFromClientQueue( receivedPacket );
 			break;
-		case TYPE_Update:
+		case TYPE_GameUpdate:
 			ReceiveUpdateFromClient( receivedPacket, receivedClient );
 			break;
-		case TYPE_Touch:
-			HandleTouchAndResetGame( receivedPacket );
-			break;
 		case TYPE_CreateRoom:
-			CreateNewRoomForClient( receivedClient );
+			{
+				ErrorCode creationError = CreateNewRoomForClient( receivedPacket.data.creating.room, receivedClient );
+				if( creationError == ERROR_None )
+				{
+					printf( "Client at %s:%i has created room %i.\n", receivedIPAddress.c_str(), receivedPort, receivedPacket.data.joining.room );
+					AcknowledgePacketFromClient( receivedPacket, receivedClient );
+				}
+				else
+				{
+					printf( "Refused creation request from client at %s:%i. Error Code: %i.\n", receivedIPAddress.c_str(), receivedPort, creationError );
+					RefusePacketFromClient( receivedPacket, receivedClient, creationError );
+				}
+			}
 			break;
-		case TYPE_Join:
-			MoveClientToRoom( receivedClient, receivedPacket.data.joining.room, false );
+		case TYPE_JoinRoom:
+			{
+				ErrorCode moveError = MoveClientToRoom( receivedClient, receivedPacket.data.joining.room, false );
+				if( moveError == ERROR_None )
+				{
+					printf( "Client at %s:%i has moved to room %i.\n", receivedIPAddress.c_str(), receivedPort, receivedPacket.data.joining.room );
+					AcknowledgePacketFromClient( receivedPacket, receivedClient );
+				}
+				else
+				{
+					printf( "Refused join request from client at %s:%i. Error Code: %i.\n", receivedIPAddress.c_str(), receivedPort, moveError );
+					RefusePacketFromClient( receivedPacket, receivedClient, moveError );
+				}
+			}
 			break;
 		case TYPE_KeepAlive:
 			// Just keep that client alive, baby...
@@ -361,22 +415,22 @@ void GameServer::ProcessNetworkQueue()
 //-----------------------------------------------------------------------------------------------
 void GameServer::HandleTouchAndResetGame( const MainPacketType& touchPacket )
 {
-	ClientInfo* itPlayer = FindClientByID( touchPacket.data.touch.receiverID );
-	ClientInfo* touchingPlayer = FindClientByID( touchPacket.data.touch.instigatorID );
-
-	printf( "Player %i touched the flag in room %i! Returning all players to lobby...\n", touchingPlayer->id, touchingPlayer->currentRoom );
-
-	RoomID roomNumberOfTouch = touchingPlayer->currentRoom;
-	World* roomWhereTouchOccurred = m_openRooms[ roomNumberOfTouch ];
-
-	//Get the room ready for another game (kinda useless right now, but hey...)
-	Entity* newFlag = new Entity();
-	Vector2 newFlagPosition( GetRandomFloatBetweenZeroandOne() * 600.f, 400.f );
-	newFlag->SetClientPosition( newFlagPosition.x, newFlagPosition.y );
-	newFlag->SetServerPosition( newFlagPosition.x, newFlagPosition.y );
-	roomWhereTouchOccurred->SetObjective( newFlag );
-	
-	CloseRoom( roomNumberOfTouch );
+// 	ClientInfo* itPlayer = FindClientByID( touchPacket.data.touch.receiverID );
+// 	ClientInfo* touchingPlayer = FindClientByID( touchPacket.data.touch.instigatorID );
+// 
+// 	printf( "Player %i touched the flag in room %i! Returning all players to lobby...\n", touchingPlayer->id, touchingPlayer->currentRoom );
+// 
+// 	RoomID roomNumberOfTouch = touchingPlayer->currentRoom;
+// 	World* roomWhereTouchOccurred = m_openRooms[ roomNumberOfTouch ];
+// 
+// 	//Get the room ready for another game (kinda useless right now, but hey...)
+// 	Entity* newFlag = new Entity();
+// 	Vector2 newFlagPosition( GetRandomFloatBetweenZeroandOne() * 600.f, 400.f );
+// 	newFlag->SetClientPosition( newFlagPosition.x, newFlagPosition.y );
+// 	newFlag->SetServerPosition( newFlagPosition.x, newFlagPosition.y );
+// 	roomWhereTouchOccurred->SetObjective( newFlag );
+// 	
+// 	CloseRoom( roomNumberOfTouch );
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -385,9 +439,9 @@ void GameServer::ReceiveUpdateFromClient( const MainPacketType& updatePacket, Cl
 	if( client->ownedPlayer == nullptr )
 		return;
 
-	client->ownedPlayer->SetClientPosition( updatePacket.data.updated.xPosition, updatePacket.data.updated.yPosition );
-	client->ownedPlayer->SetClientVelocity( updatePacket.data.updated.xVelocity, updatePacket.data.updated.yVelocity );
-	client->ownedPlayer->SetClientOrientation( updatePacket.data.updated.orientationDegrees );
+	client->ownedPlayer->SetClientPosition( updatePacket.data.updatedGame.xPosition, updatePacket.data.updatedGame.yPosition );
+	client->ownedPlayer->SetClientVelocity( updatePacket.data.updatedGame.xVelocity, updatePacket.data.updatedGame.yVelocity );
+	client->ownedPlayer->SetClientOrientation( updatePacket.data.updatedGame.orientationDegrees );
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -395,12 +449,12 @@ void GameServer::RemoveAcknowledgedPacketFromClientQueue( const MainPacketType& 
 {
 	ClientInfo* acknowledgingClient = FindClientByID( ackPacket.clientID );
 
-	std::set< MainPacketType, PacketComparer >::iterator unackedPacket;
+	std::set< MainPacketType, FinalPacketComparer >::iterator unackedPacket;
 	for( unackedPacket = acknowledgingClient->unacknowledgedPackets.begin(); 
 		 unackedPacket != acknowledgingClient->unacknowledgedPackets.end(); 
 		 ++unackedPacket )
 	{
-		if( unackedPacket->number == ackPacket.data.acknowledged.packetNumber )
+		if( unackedPacket->number == ackPacket.data.acknowledged.number )
 		{
 			printf( "Removing an acknowledged packet from client ID %i.\n", acknowledgingClient->id );
 			acknowledgingClient->unacknowledgedPackets.erase( unackedPacket );
@@ -412,10 +466,10 @@ void GameServer::RemoveAcknowledgedPacketFromClientQueue( const MainPacketType& 
 //-----------------------------------------------------------------------------------------------
 void GameServer::ResendUnacknowledgedPacketsToClient( ClientInfo* client )
 {
-	std::set< MainPacketType, PacketComparer >::iterator unackedPacket;
+	std::set< MainPacketType, FinalPacketComparer >::iterator unackedPacket;
 	for( unackedPacket = client->unacknowledgedPackets.begin(); unackedPacket != client->unacknowledgedPackets.end(); ++unackedPacket )
 	{
-		SendPacketToClient( *unackedPacket, client );
+		SendPacketToClient( const_cast< MainPacketType& >( *unackedPacket ), client );
 	}
 }
 
@@ -434,25 +488,19 @@ void GameServer::ResetClient( ClientInfo* client )
 	client->ownedPlayer->SetClientOrientation( 0.f );
 
 	MainPacketType resetPacket;
-	resetPacket.type = TYPE_Reset;
+	resetPacket.type = TYPE_GameReset;
 	resetPacket.clientID = client->id;
 	resetPacket.number = client->currentPacketNumber;
 	++client->currentPacketNumber;
 
-	Vector2 flagPosition = m_openRooms[ client->currentRoom ]->GetObjective()->GetCurrentPosition();
-	resetPacket.data.reset.flagXPosition = flagPosition.x;
-	resetPacket.data.reset.flagYPosition = flagPosition.y;
-
 	resetPacket.data.reset.xPosition = startingPosition.x;
 	resetPacket.data.reset.yPosition = startingPosition.y;
-	resetPacket.data.reset.xVelocity = 0.f;
-	resetPacket.data.reset.yVelocity = 0.f;
 	resetPacket.data.reset.orientationDegrees = 0.f;
 	SendPacketToClient( resetPacket, client );
 }
 
 //-----------------------------------------------------------------------------------------------
-void GameServer::SendPacketToClient( const MainPacketType& packet, ClientInfo* client )
+void GameServer::SendPacketToClient( MainPacketType& packet, ClientInfo* client )
 {
 	packet.timestamp = GetCurrentTimeSeconds();
 
@@ -473,7 +521,7 @@ void GameServer::SendPacketToClient( const MainPacketType& packet, ClientInfo* c
 //-----------------------------------------------------------------------------------------------
 void GameServer::UpdateGameState( float /*deltaSeconds*/ )
 {
-	for( unsigned int i = 0; i < m_openRooms.size(); ++i )
+	for( unsigned int i = 0; i < MAXIMUM_NUMBER_OF_GAME_ROOMS; ++i )
 	{
 		//m_openRooms[ i ].Update( deltaSeconds );
 	}

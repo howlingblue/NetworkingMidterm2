@@ -524,8 +524,6 @@ void GameClient::Update( double timeSpentLastFrameSeconds )
 		{
 			ProcessPacketQueue();
 
-			if( m_keyboard->KeyIsPressed( Keyboard::NUMBER_0 ) )
-				SendJoinRequestToServer( 0 );
 			if( m_keyboard->KeyIsPressed( Keyboard::NUMBER_1 ) )
 				SendJoinRequestToServer( 1 );
 			if( m_keyboard->KeyIsPressed( Keyboard::NUMBER_2 ) )
@@ -542,8 +540,6 @@ void GameClient::Update( double timeSpentLastFrameSeconds )
 				SendJoinRequestToServer( 7 );
 			if( m_keyboard->KeyIsPressed( Keyboard::NUMBER_8 ) )
 				SendJoinRequestToServer( 8 );
-			if( m_keyboard->KeyIsPressed( Keyboard::NUMBER_9 ) )
-				SendJoinRequestToServer( 9 );
 			if( m_keyboard->KeyIsPressed( Keyboard::N ) )
 				SendRoomCreationRequestToServer();
 			
@@ -609,11 +605,11 @@ void GameClient::UpdateLobbyStatus( const MainPacketType& packet )
 
 	for( unsigned int i = 0; i < 8; ++i )
 	{
-		printf( "\t Room %i: ", i + i );
+		printf( "\t Room %i: ", i +	1 );
 		if( packet.data.updatedLobby.playersInRoomNumber[ i ] == 0 )
-			printf( "EMPTY - Press '%i' to create this room.\n", i + i );
+			printf( "EMPTY - Press '%i' to create this room.\n", i + 1 );
 		else
-			printf( "%i players - Press '%i' to create this room.\n", packet.data.updatedLobby.playersInRoomNumber[ i ], i + i );
+			printf( "%i players - Press '%i' to create this room.\n", packet.data.updatedLobby.playersInRoomNumber[ i ], i + 1 );
 	}
 }
 #pragma endregion
