@@ -155,6 +155,11 @@ void GameClient::HandleIncomingPacket( const MainPacketType& packet )
 		if( m_currentState == STATE_InLobby )
 			UpdateLobbyStatus( packet );
 		break;
+	case TYPE_GameReset:
+		if( m_currentState == STATE_WaitingForGameStart || m_currentState == STATE_InGame )
+			ResetGame( packet );
+		ClearResendingPacket();
+		break;
 	default:
 		break;
 	}
@@ -163,6 +168,9 @@ void GameClient::HandleIncomingPacket( const MainPacketType& packet )
 //-----------------------------------------------------------------------------------------------
 void GameClient::HandleServerAcknowledgement( const MainPacketType& packet )
 {
+	if( m_packetToResend == nullptr )
+		return;
+
 	if( ( packet.data.acknowledged.type != m_packetToResend->type ) ||
 		( packet.data.acknowledged.number != m_packetToResend->number ) )
 	{
@@ -172,6 +180,7 @@ void GameClient::HandleServerAcknowledgement( const MainPacketType& packet )
 
 	switch( m_packetToResend->type )
 	{
+	case TYPE_CreateRoom:
 	case TYPE_JoinRoom:
 		{
 			if( m_packetToResend->data.joining.room == ROOM_Lobby )
@@ -179,6 +188,7 @@ void GameClient::HandleServerAcknowledgement( const MainPacketType& packet )
 			else
 				m_currentState = STATE_WaitingForGameStart;
 		}
+		ClearResendingPacket();
 		break;
 	default:
 		break;
@@ -188,6 +198,8 @@ void GameClient::HandleServerAcknowledgement( const MainPacketType& packet )
 //-----------------------------------------------------------------------------------------------
 void GameClient::HandleServerRefusal( const MainPacketType& packet )
 {
+	if( m_packetToResend == nullptr )
+		return;
 	if( ( packet.data.acknowledged.type != m_packetToResend->type ) ||
 		( packet.data.acknowledged.number != m_packetToResend->number ) )
 	{
@@ -197,14 +209,13 @@ void GameClient::HandleServerRefusal( const MainPacketType& packet )
 
 	switch( m_packetToResend->type )
 	{
+	case TYPE_CreateRoom:
 	case TYPE_JoinRoom:
-		{
-
-		}
-		break;
+		m_currentState = STATE_InLobby;
 	default:
 		break;
 	}
+	ClearResendingPacket();
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -288,28 +299,24 @@ void GameClient::ProcessPacketQueue()
 }
 
 //-----------------------------------------------------------------------------------------------
-void GameClient::ResetGame( const MainPacketType& )
+void GameClient::ResetGame( const MainPacketType& resetPacket )
 {
-// 	if( m_currentWorld != nullptr )
-// 		delete m_currentWorld;
-// 	m_currentWorld = new World();
-// 
-// 	Entity* flagObjective = new Entity();
-// 	m_currentWorld->SetObjective( flagObjective );
-// 	flagObjective->SetClientPosition( resetPacket.data.reset.flagXPosition, resetPacket.data.reset.flagYPosition );
-// 	flagObjective->SetServerPosition( resetPacket.data.reset.flagXPosition, resetPacket.data.reset.flagYPosition );
-// 	flagObjective->SetItStatus( true );
-// 
-// 	m_localEntity = new Entity();
-// 	m_currentWorld->AddNewPlayer( m_localEntity );
-// 	m_localEntity->SetID( resetPacket.clientID );
-// 
-// 	m_localEntity->SetClientPosition( resetPacket.data.reset.xPosition, resetPacket.data.reset.yPosition );
-// 	m_localEntity->SetServerPosition( resetPacket.data.reset.xPosition, resetPacket.data.reset.yPosition );
-// 	m_localEntity->SetClientVelocity( resetPacket.data.reset.xVelocity, resetPacket.data.reset.yVelocity );
-// 	m_localEntity->SetServerVelocity( resetPacket.data.reset.xVelocity, resetPacket.data.reset.yVelocity );
-// 	m_localEntity->SetClientOrientation( resetPacket.data.reset.orientationDegrees );
-// 	m_localEntity->SetServerOrientation( resetPacket.data.reset.orientationDegrees );
+	if( m_currentWorld != nullptr )
+		delete m_currentWorld;
+	m_currentWorld = new World();
+
+	m_localEntity = new Entity();
+	m_currentWorld->AddNewPlayer( m_localEntity );
+	m_localEntity->SetID( resetPacket.data.reset.id );
+
+	m_localEntity->SetClientPosition( resetPacket.data.reset.xPosition, resetPacket.data.reset.yPosition );
+	m_localEntity->SetServerPosition( resetPacket.data.reset.xPosition, resetPacket.data.reset.yPosition );
+	m_localEntity->SetClientOrientation( resetPacket.data.reset.orientationDegrees );
+	m_localEntity->SetServerOrientation( resetPacket.data.reset.orientationDegrees );
+	m_localEntity->SetHealth( World::MAX_HEALTH );
+	m_localEntity->SetScore( 0 );
+
+	m_currentState = STATE_InGame;
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -354,15 +361,29 @@ void GameClient::SendPacketToServer( MainPacketType& packet )
 }
 
 //-----------------------------------------------------------------------------------------------
-void GameClient::SendRoomCreationRequestToServer()
+void GameClient::SendRoomCreationRequestToServer( RoomID roomToCreate )
 {
 	MainPacketType* createPacket = new MainPacketType();
 	createPacket->type = TYPE_CreateRoom;
 	createPacket->clientID = 0;
 	createPacket->number = 0;
 
+	createPacket->data.creating.room = roomToCreate;
+
 	SendPacketToServer( *createPacket );
 	m_packetToResend = createPacket;
+}
+
+//-----------------------------------------------------------------------------------------------
+void GameClient::SendServerRoomRequestBasedOnStatus( RoomID room )
+{
+	if( m_packetToResend != nullptr )
+		return;
+
+	if( m_playersInRoom[ room - 1 ] == 0 ) //Remember: Rooms are 1 indexed!
+		SendRoomCreationRequestToServer( room );
+	else
+		SendJoinRequestToServer( room );
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -427,6 +448,7 @@ void GameClient::UpdateEntityFromPacket( const MainPacketType& packet )
 		newEntity->SetID( packet.clientID );
 		newEntity->SetClientPosition( packet.data.updatedGame.xPosition, packet.data.updatedGame.yPosition );
 		newEntity->SetClientVelocity( packet.data.updatedGame.xVelocity, packet.data.updatedGame.yVelocity );
+		newEntity->SetClientAcceleration( packet.data.updatedGame.xAcceleration, packet.data.updatedGame.yAcceleration );
 		newEntity->SetClientOrientation( packet.data.updatedGame.orientationDegrees );
 
 		updatingEntity = newEntity;
@@ -435,7 +457,11 @@ void GameClient::UpdateEntityFromPacket( const MainPacketType& packet )
 
 	updatingEntity->SetServerPosition( packet.data.updatedGame.xPosition, packet.data.updatedGame.yPosition );
 	updatingEntity->SetServerVelocity( packet.data.updatedGame.xVelocity, packet.data.updatedGame.yVelocity );
+	updatingEntity->SetServerAcceleration( packet.data.updatedGame.xAcceleration, packet.data.updatedGame.yAcceleration );
 	updatingEntity->SetServerOrientation( packet.data.updatedGame.orientationDegrees );
+
+	updatingEntity->SetHealth( packet.data.updatedGame.health );
+	updatingEntity->SetScore( packet.data.updatedGame.score );
 }
 #pragma endregion
 
@@ -525,23 +551,21 @@ void GameClient::Update( double timeSpentLastFrameSeconds )
 			ProcessPacketQueue();
 
 			if( m_keyboard->KeyIsPressed( Keyboard::NUMBER_1 ) )
-				SendJoinRequestToServer( 1 );
+				SendServerRoomRequestBasedOnStatus( 1 );
 			if( m_keyboard->KeyIsPressed( Keyboard::NUMBER_2 ) )
-				SendJoinRequestToServer( 2 );
+				SendServerRoomRequestBasedOnStatus( 2 );
 			if( m_keyboard->KeyIsPressed( Keyboard::NUMBER_3 ) )
-				SendJoinRequestToServer( 3 );
+				SendServerRoomRequestBasedOnStatus( 3 );
 			if( m_keyboard->KeyIsPressed( Keyboard::NUMBER_4 ) )
-				SendJoinRequestToServer( 4 );
+				SendServerRoomRequestBasedOnStatus( 4 );
 			if( m_keyboard->KeyIsPressed( Keyboard::NUMBER_5 ) )
-				SendJoinRequestToServer( 5 );
+				SendServerRoomRequestBasedOnStatus( 5 );
 			if( m_keyboard->KeyIsPressed( Keyboard::NUMBER_6 ) )
-				SendJoinRequestToServer( 6 );
+				SendServerRoomRequestBasedOnStatus( 6 );
 			if( m_keyboard->KeyIsPressed( Keyboard::NUMBER_7 ) )
-				SendJoinRequestToServer( 7 );
+				SendServerRoomRequestBasedOnStatus( 7 );
 			if( m_keyboard->KeyIsPressed( Keyboard::NUMBER_8 ) )
-				SendJoinRequestToServer( 8 );
-			if( m_keyboard->KeyIsPressed( Keyboard::N ) )
-				SendRoomCreationRequestToServer();
+				SendServerRoomRequestBasedOnStatus( 8 );
 			
 			static float secondsSinceLastResentPacket = 0.f;
 			if( secondsSinceLastResentPacket > MAX_SECONDS_BETWEEN_PACKET_SENDS )
@@ -555,6 +579,13 @@ void GameClient::Update( double timeSpentLastFrameSeconds )
 				secondsSinceLastResentPacket = 0.f;
 			}
 			secondsSinceLastResentPacket += deltaSeconds;
+		}
+		break;
+	case STATE_WaitingForGameStart:
+		{
+			printf( "Waiting for the game to start...\n" );
+
+			ProcessPacketQueue();
 		}
 		break;
 	case STATE_InGame:
@@ -583,7 +614,7 @@ void GameClient::Update( double timeSpentLastFrameSeconds )
 
 	//Resend "Guaranteed" client packets in situations when we need them.
 	static float secondsSinceLastResentPacket = 0.f;
-	static const float SECONDS_BEFORE_PACKETS_RESENT = 1.f;
+	static const float SECONDS_BEFORE_PACKETS_RESENT = 1.5f;
 	if( m_packetToResend != nullptr )
 	{
 		if( secondsSinceLastResentPacket > SECONDS_BEFORE_PACKETS_RESENT )
@@ -591,11 +622,10 @@ void GameClient::Update( double timeSpentLastFrameSeconds )
 			SendPacketToServer( *m_packetToResend );
 			secondsSinceLastResentPacket = 0.f;
 		}
+		secondsSinceLastResentPacket += deltaSeconds;
 	}
 	else
 		secondsSinceLastResentPacket = 0.f;
-
-	secondsSinceLastResentPacket += deltaSeconds;
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -603,13 +633,15 @@ void GameClient::UpdateLobbyStatus( const MainPacketType& packet )
 {
 	printf( "IN LOBBY:\n" );
 
-	for( unsigned int i = 0; i < 8; ++i )
+	for( unsigned int i = 0; i < MAX_NUMBER_OF_ROOMS; ++i )
 	{
+		m_playersInRoom[ i ] = packet.data.updatedLobby.playersInRoomNumber[ i ];
+
 		printf( "\t Room %i: ", i +	1 );
-		if( packet.data.updatedLobby.playersInRoomNumber[ i ] == 0 )
+		if( m_playersInRoom[ i ] == 0 )
 			printf( "EMPTY - Press '%i' to create this room.\n", i + 1 );
 		else
-			printf( "%i players - Press '%i' to create this room.\n", packet.data.updatedLobby.playersInRoomNumber[ i ], i + 1 );
+			printf( "%i players - Press '%i' to create this room.\n", m_playersInRoom[ i ], i + 1 );
 	}
 }
 #pragma endregion

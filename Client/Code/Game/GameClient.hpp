@@ -27,12 +27,13 @@ class GameClient
 	static const State STATE_WaitingForGameStart = 2;
 	static const State STATE_InGame = 3;
 
-	static const float		 WORLD_WIDTH;
-	static const float		 WORLD_HEIGHT;
-	static const float		 IT_PLAYER_SPEED_MULTIPLIER;
-	static const float		 MAX_SECONDS_BETWEEN_PACKET_SENDS;
-	static const float		 OBJECT_CONTACT_DISTANCE;
-	static const float		 SECONDS_TO_WAIT_BEFORE_RESENDS;
+	static const float		  WORLD_WIDTH;
+	static const float		  WORLD_HEIGHT;
+	static const float		  IT_PLAYER_SPEED_MULTIPLIER;
+	static const float		  MAX_SECONDS_BETWEEN_PACKET_SENDS;
+	static const float		  OBJECT_CONTACT_DISTANCE;
+	static const float		  SECONDS_TO_WAIT_BEFORE_RESENDS;
+	static const unsigned int MAX_NUMBER_OF_ROOMS = 8;
 
 	Vector2								m_screenSize;
 	Keyboard*							m_keyboard;
@@ -52,6 +53,7 @@ class GameClient
 	ClientID		m_myClientID;
 	Entity*			m_localEntity;
 	float			m_secondsSinceLastSentUpdate;
+	unsigned int	m_playersInRoom[ MAX_NUMBER_OF_ROOMS ];
 
 	//Input Functions
 	void HandleInput( float deltaSeconds );
@@ -69,7 +71,8 @@ class GameClient
 	void SendEntityTouchedIt( Entity* touchingEntity, Entity* itEntity );
 	void SendJoinRequestToServer( RoomID roomToJoin = ROOM_Lobby );
 	void SendPacketToServer( MainPacketType& packet );
-	void SendRoomCreationRequestToServer();
+	void SendRoomCreationRequestToServer( RoomID roomToCreate );
+	void SendServerRoomRequestBasedOnStatus( RoomID room );
 	void SendUpdatedPositionsToServer( float deltaSeconds );
 	void UpdateEntityFromPacket( const MainPacketType& packet );
 	void UpdateLobbyStatus( const MainPacketType& packet );

@@ -132,7 +132,7 @@ void GameServer::BroadcastGameStateToClients()
 	for( unsigned int i = 0; i < m_clientList.size(); ++i )
 	{
 		ClientInfo*& broadcastedClient = m_clientList[ i ];
-		if( broadcastedClient->currentRoom >= ROOM_Lobby )
+		if( broadcastedClient->currentRoom == ROOM_Lobby )
 		{
 			lobbyUpdatePacket.number = broadcastedClient->currentPacketNumber;
 			++broadcastedClient->currentPacketNumber;
@@ -151,7 +151,15 @@ void GameServer::BroadcastGameStateToClients()
 		Vector2 currentVelocity = broadcastedClient->ownedPlayer->GetCurrentVelocity();
 		updatePacket.data.updatedGame.xVelocity = currentVelocity.x;
 		updatePacket.data.updatedGame.yVelocity = currentVelocity.y;
+
+		Vector2 currentAcceleration = broadcastedClient->ownedPlayer->GetCurrentAcceleration();
+		updatePacket.data.updatedGame.xAcceleration = currentAcceleration.x;
+		updatePacket.data.updatedGame.yAcceleration = currentAcceleration.y;
+
 		updatePacket.data.updatedGame.orientationDegrees = broadcastedClient->ownedPlayer->GetCurrentOrientation();
+
+		updatePacket.data.updatedGame.health = broadcastedClient->ownedPlayer->GetHealth();
+		updatePacket.data.updatedGame.score = broadcastedClient->ownedPlayer->GetScore();
 
 		for( unsigned int j = 0; j < m_clientList.size(); ++j )
 		{
@@ -192,8 +200,8 @@ ErrorCode GameServer::CreateNewRoomForClient( RoomID room, ClientInfo* client )
 	if( client->ownsCurrentRoom )
 	{
 		printf( "WARNING: Client with ID %i tried to create a room even though it's a room owner!\n", client->id );
-		//CHANGE: Client should be allowed to create a room; previous room closes
-		return ERROR_Unknown;
+		MoveClientToRoom( client, client->currentRoom, true );
+		return ERROR_None;
 	}
 
 	printf( "Attempting to create room %i for client ID %i...\n", room, client->id );
@@ -216,11 +224,11 @@ ErrorCode GameServer::CreateNewWorldAtRoomID( RoomID id )
 	World* newWorld = new World();
 	m_openRooms[ id - 1 ] = newWorld; //remember, room ids start at 1!
 
-	Vector2 objectivePosition( GetRandomFloatBetweenZeroandOne() * 600.f, 400.f );
-	Entity* objectiveFlag = new Entity();
-	objectiveFlag->SetClientPosition( objectivePosition.x, objectivePosition.y );
-	objectiveFlag->SetServerPosition( objectivePosition.x, objectivePosition.y );
-	newWorld->SetObjective( objectiveFlag );
+// 	Vector2 objectivePosition( GetRandomFloatBetweenZeroandOne() * 600.f, 400.f );
+// 	Entity* objectiveFlag = new Entity();
+// 	objectiveFlag->SetClientPosition( objectivePosition.x, objectivePosition.y );
+// 	objectiveFlag->SetServerPosition( objectivePosition.x, objectivePosition.y );
+// 	newWorld->SetObjective( objectiveFlag );
 
 	return ERROR_None;
 }
@@ -273,7 +281,7 @@ ErrorCode GameServer::MoveClientToRoom( ClientInfo* client, RoomID room, bool ow
 
 	if( client->currentRoom != ROOM_None && client->currentRoom != ROOM_Lobby ) //If it's a room that contains a world
 	{
-		m_openRooms[ client->currentRoom ]->RemovePlayer( client->ownedPlayer );
+		m_openRooms[ client->currentRoom - 1 ]->RemovePlayer( client->ownedPlayer );
 		client->ownedPlayer = nullptr;
 		client->currentRoom = ROOM_None;
 		client->ownsCurrentRoom = false;
@@ -282,10 +290,11 @@ ErrorCode GameServer::MoveClientToRoom( ClientInfo* client, RoomID room, bool ow
 	client->currentRoom = room;
 	client->ownsCurrentRoom = ownsRoom;
 
-	if( client->currentRoom < ROOM_Lobby )
+	if( client->currentRoom > ROOM_Lobby )
 	{
 		client->ownedPlayer = new Entity();
-		m_openRooms[ client->currentRoom ]->AddNewPlayer( client->ownedPlayer );
+		m_openRooms[ client->currentRoom - 1 ]->AddNewPlayer( client->ownedPlayer );
+		client->id = m_openRooms[ client->currentRoom - 1 ]->GetNextPlayerID();
 		ResetClient( client );
 	}
 	return ERROR_None;
@@ -350,7 +359,7 @@ void GameServer::ProcessNetworkQueue()
 			ErrorCode moveError = MoveClientToRoom( receivedClient, receivedPacket.data.joining.room, false );
 			if( moveError == ERROR_None )
 			{
-				printf( "Received join packet from %s:%i. Added as client number %i.\n", receivedIPAddress.c_str(), receivedPort, receivedClient->id );
+				printf( "Received join packet from %s:%i. Added as client.\n", receivedIPAddress.c_str(), receivedPort );
 				AcknowledgePacketFromClient( receivedPacket, receivedClient );
 			}
 			else
@@ -365,7 +374,9 @@ void GameServer::ProcessNetworkQueue()
 		switch( receivedPacket.type )
 		{
 		case TYPE_Ack:
-			RemoveAcknowledgedPacketFromClientQueue( receivedPacket );
+			{
+				RemoveAcknowledgedPacketFromClientQueue( receivedPacket, FindClientByAddress( receivedIPAddress, receivedPort ) );
+			}
 			break;
 		case TYPE_GameUpdate:
 			ReceiveUpdateFromClient( receivedPacket, receivedClient );
@@ -441,23 +452,23 @@ void GameServer::ReceiveUpdateFromClient( const MainPacketType& updatePacket, Cl
 
 	client->ownedPlayer->SetClientPosition( updatePacket.data.updatedGame.xPosition, updatePacket.data.updatedGame.yPosition );
 	client->ownedPlayer->SetClientVelocity( updatePacket.data.updatedGame.xVelocity, updatePacket.data.updatedGame.yVelocity );
+	client->ownedPlayer->SetClientAcceleration( updatePacket.data.updatedGame.xAcceleration, updatePacket.data.updatedGame.yAcceleration );
 	client->ownedPlayer->SetClientOrientation( updatePacket.data.updatedGame.orientationDegrees );
+	//Client doesn't get to set health and score, since we can't trust them.
 }
 
 //-----------------------------------------------------------------------------------------------
-void GameServer::RemoveAcknowledgedPacketFromClientQueue( const MainPacketType& ackPacket )
+void GameServer::RemoveAcknowledgedPacketFromClientQueue( const MainPacketType& ackPacket, ClientInfo* client )
 {
-	ClientInfo* acknowledgingClient = FindClientByID( ackPacket.clientID );
-
 	std::set< MainPacketType, FinalPacketComparer >::iterator unackedPacket;
-	for( unackedPacket = acknowledgingClient->unacknowledgedPackets.begin(); 
-		 unackedPacket != acknowledgingClient->unacknowledgedPackets.end(); 
+	for( unackedPacket = client->unacknowledgedPackets.begin(); 
+		 unackedPacket != client->unacknowledgedPackets.end(); 
 		 ++unackedPacket )
 	{
 		if( unackedPacket->number == ackPacket.data.acknowledged.number )
 		{
-			printf( "Removing an acknowledged packet from client ID %i.\n", acknowledgingClient->id );
-			acknowledgingClient->unacknowledgedPackets.erase( unackedPacket );
+			printf( "Removing an acknowledged packet from client ID %i.\n", client->id );
+			client->unacknowledgedPackets.erase( unackedPacket );
 			return;
 		}
 	}
@@ -485,7 +496,10 @@ void GameServer::ResetClient( ClientInfo* client )
 
 	client->ownedPlayer->SetClientPosition( startingPosition.x, startingPosition.y );
 	client->ownedPlayer->SetClientVelocity( 0.f, 0.f );
+	client->ownedPlayer->SetClientAcceleration( 0.f, 0.f );
 	client->ownedPlayer->SetClientOrientation( 0.f );
+	client->ownedPlayer->SetHealth( World::MAX_HEALTH );
+	client->ownedPlayer->SetScore( 0 );
 
 	MainPacketType resetPacket;
 	resetPacket.type = TYPE_GameReset;
@@ -493,6 +507,7 @@ void GameServer::ResetClient( ClientInfo* client )
 	resetPacket.number = client->currentPacketNumber;
 	++client->currentPacketNumber;
 
+	resetPacket.data.reset.id = client->id;
 	resetPacket.data.reset.xPosition = startingPosition.x;
 	resetPacket.data.reset.yPosition = startingPosition.y;
 	resetPacket.data.reset.orientationDegrees = 0.f;

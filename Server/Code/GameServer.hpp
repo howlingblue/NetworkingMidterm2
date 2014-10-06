@@ -81,7 +81,7 @@ private:
 	void PrintConnectedClients() const;
 	void ProcessNetworkQueue();
 	void ReceiveUpdateFromClient( const MainPacketType& updatePacket, ClientInfo* client );
-	void RemoveAcknowledgedPacketFromClientQueue( const MainPacketType& ackPacket );
+	void RemoveAcknowledgedPacketFromClientQueue( const MainPacketType& ackPacket, ClientInfo* client );
 	void ResendUnacknowledgedPacketsToClient( ClientInfo* client );
 	void SendPacketToClient( MainPacketType& packet, ClientInfo* client );
 	void UpdateGameState( float deltaSeconds );

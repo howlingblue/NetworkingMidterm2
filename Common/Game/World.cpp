@@ -60,6 +60,9 @@ Entity* World::FindPlayerTouchingObjective()
 //-----------------------------------------------------------------------------------------------
 bool World::PlayerIsTouchingObjective( Entity* player )
 {
+	if( m_objective == nullptr )
+		return false;
+
 	Vector2 objectivePosition = m_objective->GetCurrentPosition();
 
 	Vector2 vectorFromObjectiveToPlayer = objectivePosition - player->GetCurrentPosition();
@@ -75,7 +78,8 @@ bool World::PlayerIsTouchingObjective( Entity* player )
 //-----------------------------------------------------------------------------------------------
 void World::Render() const
 {
-	m_objective->Render();
+	if( m_objective != nullptr )
+		m_objective->Render();
 
 	for( unsigned int i = 0; i < m_players.size(); ++i )
 	{
@@ -86,7 +90,8 @@ void World::Render() const
 //-----------------------------------------------------------------------------------------------
 void World::Update( float deltaSeconds )
 {
-	m_objective->Update( deltaSeconds );
+	if( m_objective != nullptr )
+		m_objective->Update( deltaSeconds );
 
 	for( unsigned int i = 0; i < m_players.size(); ++i )
 	{

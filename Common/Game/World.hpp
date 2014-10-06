@@ -11,6 +11,9 @@ class World
 	static const float OBJECTIVE_TOUCH_DISTANCE;
 
 public:
+	static const unsigned char MAX_HEALTH = 1;
+	static const unsigned char SCORE_NEEDED_TO_WIN = 10;
+
 	World();
 	~World();
 
@@ -18,6 +21,7 @@ public:
 	Entity* FindPlayerWithID( unsigned short targetID );
 	bool RemovePlayer( Entity* player );
 
+	unsigned char GetNextPlayerID();
 	unsigned int GetNumberOfPlayers() const { return m_players.size(); }
 	const Entity* GetObjective() { return m_objective; }
 	Entity* FindPlayerTouchingObjective();
@@ -30,6 +34,7 @@ public:
 private:
 	Entity* m_objective;
 	std::vector< Entity* > m_players;
+	unsigned char m_nextPlayerID;
 };
 
 
@@ -37,6 +42,7 @@ private:
 //-----------------------------------------------------------------------------------------------
 inline World::World()
 	: m_objective( nullptr )
+	, m_nextPlayerID( 0 )
 {
 }
 
@@ -52,6 +58,14 @@ inline World::~World()
 	}
 
 	m_players.clear();
+}
+
+//-----------------------------------------------------------------------------------------------
+inline unsigned char World::GetNextPlayerID()
+{
+	unsigned char nextPlayerID = m_nextPlayerID;
+	++m_nextPlayerID;
+	return nextPlayerID;
 }
 
 //-----------------------------------------------------------------------------------------------
