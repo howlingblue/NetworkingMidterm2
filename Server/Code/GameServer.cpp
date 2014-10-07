@@ -175,6 +175,24 @@ void GameServer::BroadcastGameStateToClients()
 }
 
 //-----------------------------------------------------------------------------------------------
+void GameServer::BroadcastPacketToAllPlayersInRoom( const MainPacketType& packet, RoomID room )
+{
+	for( unsigned int i = 0; i < m_clientList.size(); ++i )
+	{
+		ClientInfo*& receivingClient = m_clientList[ i ];
+
+		if( receivingClient->currentRoom != room )
+			continue;
+
+		MainPacketType packetCopy = packet;
+		packetCopy.clientID = receivingClient->id;
+		packetCopy.number = receivingClient->GetNextPacketNumber();
+		packetCopy.timestamp = GetCurrentTimeSeconds();
+		SendPacketToClient( packetCopy, receivingClient );
+	}
+}
+
+//-----------------------------------------------------------------------------------------------
 void GameServer::CloseRoom( RoomID room )
 {
 	for( unsigned int i = 0; i < m_clientList.size(); ++i )
@@ -414,6 +432,15 @@ void GameServer::ProcessNetworkQueue()
 		case TYPE_KeepAlive:
 			// Just keep that client alive, baby...
 			break;
+		case TYPE_Fire:
+			{
+				BroadcastPacketToAllPlayersInRoom( receivedPacket, receivedClient->currentRoom );
+				World* worldFiredIn = GetRoomWithID( receivedClient->currentRoom );
+				worldFiredIn->HandleFireEventFromPlayer( receivedClient->ownedPlayer );
+			}
+			break;
+		case TYPE_Hit:
+		case TYPE_Respawn:
 		default:
 			printf( "WARNING: Received bad packet from %s:%i.\n", receivedIPAddress.c_str(), receivedPort );
 		}
@@ -534,11 +561,15 @@ void GameServer::SendPacketToClient( MainPacketType& packet, ClientInfo* client 
 }
 
 //-----------------------------------------------------------------------------------------------
-void GameServer::UpdateGameState( float /*deltaSeconds*/ )
+void GameServer::UpdateGameState( float deltaSeconds )
 {
 	for( unsigned int i = 0; i < MAXIMUM_NUMBER_OF_GAME_ROOMS; ++i )
 	{
+		if( m_openRooms[ i ] == nullptr )
+			continue;
+
 		//m_openRooms[ i ].Update( deltaSeconds );
+		m_openRooms[ i ]->UpdateLasers( deltaSeconds );
 	}
 // 	for( unsigned int i = 0; i < m_clientList.size(); ++i )
 // 	{

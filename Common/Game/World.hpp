@@ -2,8 +2,10 @@
 #ifndef INCLUDED_WORLD_HPP
 #define INCLUDED_WORLD_HPP
 
+#include <utility>
 #include <vector>
 #include "Entity.hpp"
+#include "LaserBeam.hpp"
 
 //-----------------------------------------------------------------------------------------------
 class World
@@ -18,21 +20,25 @@ public:
 	~World();
 
 	void AddNewPlayer( Entity* newPlayer ) { m_players.push_back( newPlayer ); }
+	Entity* FindPlayerTouchingObjective();
 	Entity* FindPlayerWithID( unsigned short targetID );
 	bool RemovePlayer( Entity* player );
 
+	void CheckForLaserImpacts( std::vector< std::pair< const Entity*, const Entity* > >& out_impactsThisFrame );
 	unsigned char GetNextPlayerID();
 	unsigned int GetNumberOfPlayers() const { return m_players.size(); }
 	const Entity* GetObjective() { return m_objective; }
-	Entity* FindPlayerTouchingObjective();
+	void HandleFireEventFromPlayer( const Entity* player );
 	bool PlayerIsTouchingObjective( Entity* player );
 	void SetObjective( Entity* newObjective );
+	void UpdateLasers( float deltaSeconds );
 
 	void Render() const;
 	void Update( float deltaSeconds );
 
 private:
 	Entity* m_objective;
+	std::vector< LaserBeam* > m_activeLasers;
 	std::vector< Entity* > m_players;
 	unsigned char m_nextPlayerID;
 };
@@ -52,11 +58,16 @@ inline World::~World()
 	if( m_objective != nullptr )
 		delete m_objective;
 
+	for( unsigned int i = 0; i < m_activeLasers.size(); ++i )
+	{
+		delete m_activeLasers[ i ];
+	}
+	m_activeLasers.clear();
+
 	for( unsigned int i = 0; i < m_players.size(); ++i )
 	{
 		delete m_players[ i ];
 	}
-
 	m_players.clear();
 }
 

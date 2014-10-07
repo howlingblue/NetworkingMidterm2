@@ -12,8 +12,8 @@ public:
 	Entity();
 	~Entity() {}
 
-	void Render() const;
-	void Update( float deltaSeconds );
+	virtual void Render() const;
+	virtual void Update( float deltaSeconds );
 
 	const Vector2& GetCurrentPosition() const { return m_clientPosition; }
 	const Vector2& GetCurrentVelocity() const { return m_clientVelocity; }
@@ -42,7 +42,7 @@ public:
 	void SetServerAcceleration( float ax, float ay );
 	void SetServerOrientation( float orientationDegrees ) { m_serverOrientationDegrees = orientationDegrees; }
 
-private:
+protected:
 	unsigned char m_playerID;
 
 	bool m_isIt;

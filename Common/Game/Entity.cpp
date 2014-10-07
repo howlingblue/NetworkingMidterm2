@@ -1,9 +1,10 @@
+#include "Entity.hpp"
+
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <gl/gl.h>
 
 #include <cmath>
-#include "Entity.hpp"
 
 //-----------------------------------------------------------------------------------------------
 void Entity::Render() const
@@ -12,7 +13,7 @@ void Entity::Render() const
 
 	glPushMatrix();
 	glTranslatef( m_clientPosition.x, m_clientPosition.y, 0.f );
-	glRotatef( m_clientOrientationDegrees, 0.f, 0.f, 1.f ); //FIX: rotation is incorrect. Bad reference frame?
+	glRotatef( m_clientOrientationDegrees, 0.f, 0.f, 1.f );
 
 	//glColor4f( (float)m_color.r / 255.f, (float)m_color.g / 255.f, (float)m_color.b / 255.f, (float)m_color.a / 255.f );
 	if( m_isIt )
@@ -64,4 +65,15 @@ void Entity::Update( float /*deltaSeconds*/ )
 
 	if( angularDisplacementDegrees > 0 )
 		m_clientOrientationDegrees += angularDisplacementDegrees;
+
+	while( m_clientOrientationDegrees >= 360.f )
+	{
+		m_clientOrientationDegrees -= 360.f;
+	}
+
+	while( m_clientOrientationDegrees < 0.f )
+	{
+		m_clientOrientationDegrees += 360.f;
+	}
+
 }

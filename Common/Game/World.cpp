@@ -40,6 +40,31 @@ bool World::RemovePlayer( Entity* player )
 }
 
 //-----------------------------------------------------------------------------------------------
+void World::CheckForLaserImpacts( std::vector< std::pair< const Entity*, const Entity* > >& out_impactsThisFrame )
+{
+	for( unsigned int i = 0; i < m_players.size(); ++i )
+	{
+		const Vector2& playerPosition = m_players[ i ]->GetCurrentPosition();
+
+		for( unsigned int j = 0; j < m_activeLasers.size(); ++i )
+		{
+			const Vector2& laserAngleVector = m_activeLasers[ i ]->GetAngleVector();
+			const Vector2& laserSource = m_activeLasers[ i ]->GetCurrentPosition();
+
+			Vector2 vectorFromPlayerToLaserSource = laserSource - playerPosition;
+			Vector2 parallelProjectionOfVectorWithLaser = vectorFromPlayerToLaserSource.DotProduct( laserAngleVector ) * laserAngleVector;
+			float distanceFromPlayerToBeam = ( vectorFromPlayerToLaserSource - parallelProjectionOfVectorWithLaser ).Length();
+
+			static const float TANK_SIZE = 10.f;
+			if( distanceFromPlayerToBeam < 10.f )
+			{
+				out_impactsThisFrame.push_back( std::pair< const Entity*, const Entity* >( m_players[ i ], m_activeLasers[ i ]->GetFirer() ) );
+			}
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------------------------
 //Returns player pointer if player was found; nullptr otherwise
 Entity* World::FindPlayerTouchingObjective()
 {
@@ -58,6 +83,13 @@ Entity* World::FindPlayerTouchingObjective()
 }
 
 //-----------------------------------------------------------------------------------------------
+void World::HandleFireEventFromPlayer( const Entity* player )
+{
+	LaserBeam* newLaser = new LaserBeam( player );
+	m_activeLasers.push_back( newLaser );
+}
+
+//-----------------------------------------------------------------------------------------------
 bool World::PlayerIsTouchingObjective( Entity* player )
 {
 	if( m_objective == nullptr )
@@ -73,6 +105,22 @@ bool World::PlayerIsTouchingObjective( Entity* player )
 	return false;
 }
 
+//-----------------------------------------------------------------------------------------------
+void World::UpdateLasers( float deltaSeconds )
+{
+	for( unsigned int i = 0; i < m_activeLasers.size(); ++i )
+	{
+		m_activeLasers[ i ]->Update( deltaSeconds );
+
+		if( m_activeLasers[ i ]->ReadyForCleanup() )
+		{
+			delete m_activeLasers[ i ];
+			m_activeLasers.erase( m_activeLasers.begin() + i );
+			--i;
+		}
+	}
+}
+
 
 
 //-----------------------------------------------------------------------------------------------
@@ -80,6 +128,11 @@ void World::Render() const
 {
 	if( m_objective != nullptr )
 		m_objective->Render();
+
+	for( unsigned int i = 0; i < m_activeLasers.size(); ++i )
+	{
+		m_activeLasers[ i ]->Render();
+	}
 
 	for( unsigned int i = 0; i < m_players.size(); ++i )
 	{
@@ -97,4 +150,6 @@ void World::Update( float deltaSeconds )
 	{
 		m_players[ i ]->Update( deltaSeconds );
 	}
+
+	UpdateLasers( deltaSeconds );
 }

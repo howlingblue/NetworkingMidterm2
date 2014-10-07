@@ -160,6 +160,11 @@ void GameClient::HandleIncomingPacket( const MainPacketType& packet )
 			ResetGame( packet );
 		ClearResendingPacket();
 		break;
+	case TYPE_Fire:
+		m_currentWorld->HandleFireEventFromPlayer( m_currentWorld->FindPlayerWithID( packet.clientID ) );
+		if( packet.clientID == m_myClientID )
+			ClearResendingPacket();
+		break;
 	default:
 		break;
 	}
@@ -308,6 +313,7 @@ void GameClient::ResetGame( const MainPacketType& resetPacket )
 	m_localEntity = new Entity();
 	m_currentWorld->AddNewPlayer( m_localEntity );
 	m_localEntity->SetID( resetPacket.data.reset.id );
+	m_myClientID = resetPacket.data.reset.id;
 
 	m_localEntity->SetClientPosition( resetPacket.data.reset.xPosition, resetPacket.data.reset.yPosition );
 	m_localEntity->SetServerPosition( resetPacket.data.reset.xPosition, resetPacket.data.reset.yPosition );
@@ -430,6 +436,20 @@ void GameClient::SendUpdatedPositionsToServer( float deltaSeconds )
 		updatePacket.data.updatedGame.orientationDegrees = currentOrientation;
 
 		SendPacketToServer( updatePacket );
+		m_secondsSinceLastSentUpdate = 0.f;
+	}
+
+	if( m_tankInputs[ 0 ].isShooting )
+	{
+		MainPacketType* firePacket = new MainPacketType();
+		firePacket->type = TYPE_Fire;
+		firePacket->number = 0;
+		firePacket->clientID = m_myClientID;
+		firePacket->timestamp = GetCurrentTimeSeconds();
+		firePacket->data.gunfire.instigatorID = m_myClientID;
+
+		SendPacketToServer( *firePacket );
+		m_packetToResend = firePacket;
 		m_secondsSinceLastSentUpdate = 0.f;
 	}
 

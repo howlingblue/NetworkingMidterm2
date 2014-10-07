@@ -69,6 +69,7 @@ private:
 	//Packet Senders
 	void AcknowledgePacketFromClient( const MainPacketType& packet, ClientInfo* client );
 	void BroadcastGameStateToClients();
+	void BroadcastPacketToAllPlayersInRoom( const MainPacketType& packet, RoomID room );
 	ErrorCode CreateNewRoomForClient( RoomID room, ClientInfo* client );
 	void HandleTouchAndResetGame( const MainPacketType& touchPacket );
 	ErrorCode MoveClientToRoom( ClientInfo* client, RoomID room, bool ownsRoom );
