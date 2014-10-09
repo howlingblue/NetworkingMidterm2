@@ -5,12 +5,11 @@
 #include <map>
 #include <set>
 #include <vector>
+#include "../../../Common/Engine/Input/Keyboard.hpp"
+#include "../../../Common/Engine/Input/Xbox.hpp"
+#include "../../../Common/Engine/Math/FloatVector2.hpp"
 #include "../../../Common/Engine/Color.hpp"
-#include "../../../Common/Engine/Keyboard.hpp"
-#include "../../../Common/Engine/Texture.hpp"
 #include "../../../Common/Engine/UDPSocket.hpp"
-#include "../../../Common/Engine/Vector2.hpp"
-#include "../../../Common/Engine/Xbox.hpp"
 #include "../../../Common/Game/FinalPacket.hpp"
 #include "../../../Common/Game/Entity.hpp"
 #include "../../../Common/Game/World.hpp"
@@ -35,7 +34,7 @@ class GameClient
 	static const float		  SECONDS_TO_WAIT_BEFORE_RESENDS;
 	static const unsigned int MAX_NUMBER_OF_ROOMS = 8;
 
-	Vector2								m_screenSize;
+	FloatVector2						m_screenSize;
 	Keyboard*							m_keyboard;
 	std::vector< Xbox::Controller >		m_controllers;
 	std::vector< TankControlWrapper >	m_tankInputs;
@@ -53,6 +52,7 @@ class GameClient
 	ClientID		m_myClientID;
 	Entity*			m_localEntity;
 	float			m_secondsSinceLastSentUpdate;
+	float			m_secondsSinceLastResentPacket;
 	unsigned int	m_playersInRoom[ MAX_NUMBER_OF_ROOMS ];
 
 	//Input Functions
@@ -68,6 +68,7 @@ class GameClient
 	void ProcessNetworkQueue();
 	void ProcessPacketQueue();
 	void ResetGame( const MainPacketType& resetPacket );
+	void RespawnPlayer( const MainPacketType& respawnPacket );
 	void SendEntityTouchedIt( Entity* touchingEntity, Entity* itEntity );
 	void SendJoinRequestToServer( RoomID roomToJoin = ROOM_Lobby );
 	void SendPacketToServer( MainPacketType& packet );

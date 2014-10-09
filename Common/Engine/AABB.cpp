@@ -11,7 +11,7 @@ AABB::AABB( float minX, float minY, float maxX, float maxY )
 { }
 
 //-----------------------------------------------------------------------------------------------
-AABB::AABB( const Vector2& min, const Vector2& max )
+AABB::AABB( const FloatVector2& min, const FloatVector2& max )
 	: m_min( min )
 	, m_max( max )
 { }

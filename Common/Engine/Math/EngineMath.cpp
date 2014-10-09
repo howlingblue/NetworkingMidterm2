@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <math.h>
 #include "EngineMath.hpp"
+#include "FloatVector2.hpp"
 
 //----------------------------------------------------------------------------------------------------
 // This wonderful snippet is borrowed from: http://realtimecollisiondetection.net/blog/?p=89
@@ -13,27 +14,41 @@ bool AreAlmostEqual( float a, float b )
 }
 
 //----------------------------------------------------------------------------------------------------
-Vector2 ConvertAngleToUnitCirclePosition( float angleRadians )
+FloatVector2 ConvertAngleToUnitCirclePosition( float angleRadians )
 {
-	return Vector2( cos( angleRadians ), -sin( angleRadians ) );
+	return FloatVector2( cos( angleRadians ), sin( angleRadians ) );
 }
 
 //----------------------------------------------------------------------------------------------------
-float ConvertVectorToAngleRadians( Vector2 vector )
+float ConvertVectorToAngleRadians( FloatVector2 vector )
 {
 	return atan2( vector.y, vector.x );
 }
 
 //----------------------------------------------------------------------------------------------------
-float ConvertDegreesToRadians( float angleDegrees )
+float CalculateSquaredDistanceBetween( FloatVector2 positionA, FloatVector2 positionB )
 {
-	return angleDegrees * ( PI / 180.f );
+	float xDifference = positionB.x - positionA.x;
+	float yDifference = positionB.y - positionA.y;
+
+	return ( xDifference * xDifference ) + ( yDifference * yDifference );
 }
 
 //----------------------------------------------------------------------------------------------------
-float ConvertRadiansToDegrees( float angleRadians )
+float CalculateSquaredDistanceBetween( FloatVector3 positionA, FloatVector3 positionB )
 {
-	return angleRadians * ( 180.f / PI );
+	float xDifference = positionB.x - positionA.x;
+	float yDifference = positionB.y - positionA.y;
+	float zDifference = positionB.z - positionA.z;
+
+	return ( xDifference * xDifference ) + ( yDifference * yDifference ) + ( zDifference * zDifference );
+}
+
+//----------------------------------------------------------------------------------------------------
+//This formula from: http://mathforum.org/library/drmath/view/56002.html.
+unsigned int ExtractNthDigitFromInt( int n, int number )
+{
+	return static_cast< unsigned int >( static_cast< float >( number ) / pow(10.f, ( n - 1 ) ) ) % 10;
 }
 
 //----------------------------------------------------------------------------------------------------

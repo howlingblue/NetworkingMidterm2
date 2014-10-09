@@ -4,6 +4,7 @@
 #include <cassert>
 #include <crtdbg.h>
 #include "TimeInterface.hpp"
+#include "../../Common/Engine/Graphics/Texture.hpp"
 #include "../../Client/Code/Game/GameClient.hpp"
 #pragma comment( lib, "opengl32" ) // Link in the OpenGL32.lib static library
 #pragma warning( disable : 4996 ) // Ignore warning about freopen (I prefer standard C++ libraries)
@@ -230,7 +231,7 @@ int WINAPI WinMain( HINSTANCE applicationInstanceHandle, HINSTANCE, LPSTR comman
 	{
 		RunFrame();
 	}
-	Texture::CleanUpTextureRepository();
+	Texture::CleanUpTextureRepositories();
 
 	if( g_openConsole )
 		FreeConsole();

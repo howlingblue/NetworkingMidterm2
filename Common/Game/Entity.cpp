@@ -42,7 +42,7 @@ void Entity::Update( float /*deltaSeconds*/ )
 	//Janky Dead Reckoning
 	static const float GUESSTIMATED_LATENCY = .001f;
 	static const float PERCENT_TO_INTERPOLATE_PER_FRAME = 0.2f;
-	Vector2 goalPosition = m_serverPosition + ( m_serverVelocity * GUESSTIMATED_LATENCY );
+	FloatVector2 goalPosition = m_serverPosition + ( m_serverVelocity * GUESSTIMATED_LATENCY );
 
 	m_clientPosition += PERCENT_TO_INTERPOLATE_PER_FRAME * ( goalPosition - m_clientPosition );
 	m_clientVelocity += PERCENT_TO_INTERPOLATE_PER_FRAME * ( m_serverVelocity - m_clientVelocity );

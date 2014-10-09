@@ -1,18 +1,33 @@
 #include <math.h>
-#include "EngineMath.hpp"
+#include "../Math/EngineMath.hpp"
+#include "../Math/FloatVector2.hpp"
 #include "Xbox.hpp"
 
 //----------------------------------------------------------------------------------------------------
 const float   Xbox::Controller::STICK_DEAD_ZONE = 0.3f;
 const float	  Xbox::Controller::STICK_MAXIMUM = 32768.f;
-const Vector2 Xbox::Controller::STICK_NORMALIZING_VECTOR = (1.f / Vector2( STICK_MAXIMUM, STICK_MAXIMUM ));
+const FloatVector2 Xbox::Controller::STICK_NORMALIZING_VECTOR = (1.f / FloatVector2( STICK_MAXIMUM, STICK_MAXIMUM ));
 const float   Xbox::Controller::TRIGGER_DEAD_ZONE = 0.1f;
 const float   Xbox::Controller::TRIGGER_NORMALIZER = 1.f / TRIGGER_MAXIMUM;
 
 //----------------------------------------------------------------------------------------------------
-float Xbox::Controller:: smoothInput( float magnitude, float deadZone )
+float Xbox::Controller:: SmoothInput( float magnitude, float deadZone ) const
 {
 	return ( magnitude - deadZone ) / ( 1.f - deadZone );
+}
+
+//----------------------------------------------------------------------------------------------------
+Xbox::Controller::Controller()
+	: m_padNumber( Controller::ONE )
+	, m_currentButtonState( 0 )
+	, m_lastButtonState( m_currentButtonState )
+	, m_currentLeftTrigger( 0 )
+	, m_currentRightTrigger( 0 )
+	, m_lastLeftTrigger( m_currentLeftTrigger )
+	, m_lastRightTrigger( m_currentRightTrigger )
+{
+	memset( &m_controllerState, 0, sizeof( m_controllerState ) );
+	memset( &m_vibration, 0, sizeof(XINPUT_VIBRATION) );
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -30,7 +45,7 @@ Xbox::Controller::Controller( PadNumber padNumber )
 }
 
 //----------------------------------------------------------------------------------------------------
-Vector2 Xbox::Controller::getRawStickPosition( Stick stick )
+FloatVector2 Xbox::Controller::GetRawStickPosition( Stick stick ) const
 {
 	switch( stick )
 	{
@@ -43,9 +58,9 @@ Vector2 Xbox::Controller::getRawStickPosition( Stick stick )
 }
 
 //----------------------------------------------------------------------------------------------------
-float Xbox::Controller::getStickMagnitude( Stick stick )
+float Xbox::Controller::GetStickMagnitude( Stick stick ) const
 {
-	Vector2 stickPosition;
+	FloatVector2 stickPosition;
 	switch( stick )
 	{
 	case LEFT_STICK:
@@ -56,18 +71,24 @@ float Xbox::Controller::getStickMagnitude( Stick stick )
 		stickPosition = m_rightStick;
 	}
 
-	float stickRadiusLength = stickPosition.Length();
+	float stickRadiusLength = stickPosition.CalculateNorm();
 	if(stickRadiusLength > STICK_DEAD_ZONE)
 	{
-		return smoothInput( stickRadiusLength, STICK_DEAD_ZONE );
+		return SmoothInput( stickRadiusLength, STICK_DEAD_ZONE );
 	}
 	else return 0.0f;
 }
 
 //----------------------------------------------------------------------------------------------------
-float Xbox::Controller::getStickAngle( Stick stick )
+float Xbox::Controller::GetStickAngleDegrees( Stick stick ) const
 {
-	Vector2 stickPosition;
+	return ConvertRadiansToDegrees( GetStickAngleRadians( stick ) );
+}
+
+//----------------------------------------------------------------------------------------------------
+float Xbox::Controller::GetStickAngleRadians( Stick stick ) const
+{
+	FloatVector2 stickPosition;
 	switch( stick )
 	{
 	case LEFT_STICK:
@@ -78,7 +99,7 @@ float Xbox::Controller::getStickAngle( Stick stick )
 		stickPosition = m_rightStick;
 	}
 
-	float stickRadiusLength = stickPosition.Length();
+	float stickRadiusLength = stickPosition.CalculateNorm();
 	if(stickRadiusLength > STICK_DEAD_ZONE)
 	{
 		float stickAngleRadians = atan2( stickPosition.y, stickPosition.x );
@@ -88,9 +109,9 @@ float Xbox::Controller::getStickAngle( Stick stick )
 }
 
 //----------------------------------------------------------------------------------------------------
-float Xbox::Controller::getTriggerMagnitude( Trigger trigger )
+float Xbox::Controller::GetTriggerMagnitude( Trigger trigger ) const
 {
-	if( !isTriggerPressed( trigger ) )
+	if( !IsTriggerPressedOrHeld( trigger ) )
 		return 0.0f;
 
 	float triggerPosition;
@@ -104,11 +125,11 @@ float Xbox::Controller::getTriggerMagnitude( Trigger trigger )
 		triggerPosition = m_currentRightTrigger;
 	}
 
-	return smoothInput( triggerPosition, TRIGGER_DEAD_ZONE );
+	return SmoothInput( triggerPosition, TRIGGER_DEAD_ZONE );
 }
 
 //----------------------------------------------------------------------------------------------------
-bool Xbox::Controller::isTriggerPressed( Trigger trigger )
+bool Xbox::Controller::IsTriggerPressed( Trigger trigger ) const
 {
 	float previousTriggerPosition;
 	switch( trigger )
@@ -120,11 +141,11 @@ bool Xbox::Controller::isTriggerPressed( Trigger trigger )
 	default:
 		previousTriggerPosition = m_lastRightTrigger;
 	}
-	return ( isTriggerPressedOrHeld( trigger ) && previousTriggerPosition < TRIGGER_DEAD_ZONE );
+	return ( IsTriggerPressedOrHeld( trigger ) && previousTriggerPosition < TRIGGER_DEAD_ZONE );
 }
 
 //----------------------------------------------------------------------------------------------------
-bool Xbox::Controller::isTriggerPressedOrHeld( Trigger trigger )
+bool Xbox::Controller::IsTriggerPressedOrHeld( Trigger trigger ) const
 {
 	float triggerPosition;
 	switch( trigger )
@@ -138,9 +159,8 @@ bool Xbox::Controller::isTriggerPressedOrHeld( Trigger trigger )
 	}
 
 	if( triggerPosition > TRIGGER_DEAD_ZONE )
-	{
 		return true;
-	}
+
 	return false;
 }
 
@@ -166,10 +186,10 @@ void Xbox::Controller::Update( float deltaSeconds )
 	m_lastRightTrigger = m_currentRightTrigger;
 
 	m_currentButtonState = m_controllerState.Gamepad.wButtons;
-	m_leftStick = Vector2( m_controllerState.Gamepad.sThumbLX, m_controllerState.Gamepad.sThumbLY );
-	m_leftStick *= STICK_NORMALIZING_VECTOR;
-	m_rightStick = Vector2( m_controllerState.Gamepad.sThumbRX, m_controllerState.Gamepad.sThumbRY );
-	m_rightStick *= STICK_NORMALIZING_VECTOR;
+	m_leftStick = FloatVector2( m_controllerState.Gamepad.sThumbLX, m_controllerState.Gamepad.sThumbLY );
+	m_leftStick = MultiplyComponents( m_leftStick, STICK_NORMALIZING_VECTOR );
+	m_rightStick = FloatVector2( m_controllerState.Gamepad.sThumbRX, m_controllerState.Gamepad.sThumbRY );
+	m_rightStick = MultiplyComponents( m_rightStick, STICK_NORMALIZING_VECTOR );
 	m_currentLeftTrigger = m_controllerState.Gamepad.bLeftTrigger;
 	m_currentLeftTrigger *= TRIGGER_NORMALIZER;
 	m_currentRightTrigger = m_controllerState.Gamepad.bRightTrigger;
@@ -184,5 +204,5 @@ void Xbox::Controller::Vibrate( float leftIntensityZeroToOne, float rightIntensi
 	m_vibrationTimeSeconds = durationSeconds;
 
 	//Vibrate the controller 
-	XInputSetState(m_padNumber, &m_vibration); 
+	XInputSetState( m_padNumber, &m_vibration ); 
 }

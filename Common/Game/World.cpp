@@ -44,16 +44,16 @@ void World::CheckForLaserImpacts( std::vector< std::pair< const Entity*, const E
 {
 	for( unsigned int i = 0; i < m_players.size(); ++i )
 	{
-		const Vector2& playerPosition = m_players[ i ]->GetCurrentPosition();
+		const FloatVector2& playerPosition = m_players[ i ]->GetCurrentPosition();
 
 		for( unsigned int j = 0; j < m_activeLasers.size(); ++i )
 		{
-			const Vector2& laserAngleVector = m_activeLasers[ i ]->GetAngleVector();
-			const Vector2& laserSource = m_activeLasers[ i ]->GetCurrentPosition();
+			const FloatVector2& laserAngleVector = m_activeLasers[ i ]->GetAngleVector();
+			const FloatVector2& laserSource = m_activeLasers[ i ]->GetCurrentPosition();
 
-			Vector2 vectorFromPlayerToLaserSource = laserSource - playerPosition;
-			Vector2 parallelProjectionOfVectorWithLaser = vectorFromPlayerToLaserSource.DotProduct( laserAngleVector ) * laserAngleVector;
-			float distanceFromPlayerToBeam = ( vectorFromPlayerToLaserSource - parallelProjectionOfVectorWithLaser ).Length();
+			FloatVector2 vectorFromPlayerToLaserSource = laserSource - playerPosition;
+			FloatVector2 parallelProjectionOfVectorWithLaser = DotProduct( vectorFromPlayerToLaserSource, laserAngleVector ) * laserAngleVector;
+			float distanceFromPlayerToBeam = ( vectorFromPlayerToLaserSource - parallelProjectionOfVectorWithLaser ).CalculateNorm();
 
 			static const float TANK_SIZE = 10.f;
 			if( distanceFromPlayerToBeam < 10.f )
@@ -68,12 +68,12 @@ void World::CheckForLaserImpacts( std::vector< std::pair< const Entity*, const E
 //Returns player pointer if player was found; nullptr otherwise
 Entity* World::FindPlayerTouchingObjective()
 {
-	Vector2 objectivePosition = m_objective->GetCurrentPosition();
+	FloatVector2 objectivePosition = m_objective->GetCurrentPosition();
 
 	for( unsigned int i = 0; i < m_players.size(); ++i )
 	{
-		Vector2 vectorFromObjectiveToLocalPlayer = objectivePosition - m_players[ i ]->GetCurrentPosition();
-		if( vectorFromObjectiveToLocalPlayer.Length() < OBJECTIVE_TOUCH_DISTANCE )
+		FloatVector2 vectorFromObjectiveToLocalPlayer = objectivePosition - m_players[ i ]->GetCurrentPosition();
+		if( vectorFromObjectiveToLocalPlayer.CalculateNorm() < OBJECTIVE_TOUCH_DISTANCE )
 		{
 			return m_players[ i ];
 		}
@@ -95,10 +95,10 @@ bool World::PlayerIsTouchingObjective( Entity* player )
 	if( m_objective == nullptr )
 		return false;
 
-	Vector2 objectivePosition = m_objective->GetCurrentPosition();
+	FloatVector2 objectivePosition = m_objective->GetCurrentPosition();
 
-	Vector2 vectorFromObjectiveToPlayer = objectivePosition - player->GetCurrentPosition();
-	if( vectorFromObjectiveToPlayer.Length() < OBJECTIVE_TOUCH_DISTANCE )
+	FloatVector2 vectorFromObjectiveToPlayer = objectivePosition - player->GetCurrentPosition();
+	if( vectorFromObjectiveToPlayer.CalculateNorm() < OBJECTIVE_TOUCH_DISTANCE )
 	{
 		return true;
 	}

@@ -185,7 +185,6 @@ void GameServer::BroadcastPacketToAllPlayersInRoom( const MainPacketType& packet
 			continue;
 
 		MainPacketType packetCopy = packet;
-		packetCopy.clientID = receivingClient->id;
 		packetCopy.number = receivingClient->GetNextPacketNumber();
 		packetCopy.timestamp = GetCurrentTimeSeconds();
 		SendPacketToClient( packetCopy, receivingClient );

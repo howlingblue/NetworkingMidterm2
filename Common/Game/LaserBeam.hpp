@@ -3,8 +3,8 @@
 #define INCLUDED_LASER_BEAM_HPP
 
 //-----------------------------------------------------------------------------------------------
-#include "../Engine/EngineMath.hpp"
-#include "../Engine/Vector2.hpp"
+#include "../Engine/Math/EngineMath.hpp"
+#include "../Engine/Math/FloatVector2.hpp"
 #include "Entity.hpp"
 
 //-----------------------------------------------------------------------------------------------
@@ -22,14 +22,14 @@ public:
 	void Render() const;
 	void Update( float deltaSeconds );
 
-	const Vector2& GetAngleVector() const { return m_fireAngleAsVector; }
+	const FloatVector2& GetAngleVector() const { return m_fireAngleAsVector; }
 	const Entity* GetFirer() const { return m_firer; }
 	bool IsDamaging() const { return ( m_secondsSinceFired > DAMAGING_LENGTH_SECONDS ); }
 	bool ReadyForCleanup() const { return ( m_secondsSinceFired > LIFETIME_SECONDS ); }
 
 private:
 	const Entity* m_firer;
-	Vector2 m_fireAngleAsVector;
+	FloatVector2 m_fireAngleAsVector;
 	float m_secondsSinceFired;
 };
 

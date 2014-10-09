@@ -3,7 +3,7 @@
 #include <gl/gl.h>
 #include "GameClient.hpp"
 #include "../../../Common/Engine/EngineCommon.hpp"
-#include "../../../Common/Engine/EngineMath.hpp"
+#include "../../../Common/Engine/Math/EngineMath.hpp"
 #include "../../../Common/Engine/TimeInterface.hpp"
 
 //-----------------------------------------------------------------------------------------------
@@ -23,26 +23,26 @@ void GameClient::HandleInput( float deltaSeconds )
 	{
 		m_controllers[ i ].Update( deltaSeconds );
 
-		float leftStickMagnitude = m_controllers[ i ].getStickMagnitude( Xbox::LEFT_STICK );
+		float leftStickMagnitude = m_controllers[ i ].GetStickMagnitude( Xbox::LEFT_STICK );
 		if( leftStickMagnitude != 0.0f )
 		{
 			m_tankInputs[ i ].tankMovementMagnitude = leftStickMagnitude;
-			m_tankInputs[ i ].tankMovementHeading = ConvertRadiansToDegrees( m_controllers[ i ].getStickAngle( Xbox::LEFT_STICK ) );
+			m_tankInputs[ i ].tankMovementHeading = m_controllers[ i ].GetStickAngleDegrees( Xbox::LEFT_STICK );
 		}
 		else
 			m_tankInputs[ i ].tankMovementMagnitude = 0.0f;
 
 
-		float rightStickMagnitude = m_controllers[ i ].getStickMagnitude( Xbox::RIGHT_STICK );
+		float rightStickMagnitude = m_controllers[ i ].GetStickMagnitude( Xbox::RIGHT_STICK );
 		if( rightStickMagnitude != 0.0f )
 		{
 			m_tankInputs[ i ].turretMovementMagnitude = rightStickMagnitude;
-			m_tankInputs[ i ].turretMovementHeading = ConvertRadiansToDegrees( m_controllers[ i ].getStickAngle( Xbox::RIGHT_STICK ) );
+			m_tankInputs[ i ].turretMovementHeading = m_controllers[ i ].GetStickAngleDegrees( Xbox::RIGHT_STICK );
 		}
 		else
 			m_tankInputs[ i ].turretMovementMagnitude = 0.0f;
 
-		if( m_controllers[ i ].isTriggerPressed( Xbox::RIGHT_TRIGGER ) )
+		if( m_controllers[ i ].IsTriggerPressed( Xbox::RIGHT_TRIGGER ) )
 			m_tankInputs[ i ].isShooting = true;
 		else
 			m_tankInputs[ i ].isShooting = false;
@@ -71,6 +71,8 @@ void GameClient::HandleInput( float deltaSeconds )
 
 	if( m_keyboard->KeyIsPressed( Keyboard::SPACEBAR ) )
 		firstWrapper.isShooting = true;
+	else
+		firstWrapper.isShooting = false;
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -161,9 +163,33 @@ void GameClient::HandleIncomingPacket( const MainPacketType& packet )
 		ClearResendingPacket();
 		break;
 	case TYPE_Fire:
-		m_currentWorld->HandleFireEventFromPlayer( m_currentWorld->FindPlayerWithID( packet.clientID ) );
+		m_currentWorld->HandleFireEventFromPlayer( m_currentWorld->FindPlayerWithID( packet.data.gunfire.instigatorID ) );
 		if( packet.clientID == m_myClientID )
 			ClearResendingPacket();
+		break;
+	case TYPE_Hit:
+		{
+			Entity* hitPlayer = m_currentWorld->FindPlayerWithID( packet.data.hit.targetID );
+			Entity* instigatingPlayer = m_currentWorld->FindPlayerWithID( packet.data.hit.instigatorID );
+
+			hitPlayer->SetHealth( hitPlayer->GetHealth() - packet.data.hit.damageDealt );
+
+			if( hitPlayer->GetHealth() == 0 && instigatingPlayer != nullptr )
+				instigatingPlayer->SetScore( instigatingPlayer->GetScore() + 1 );
+		}
+		break;
+	case TYPE_Respawn:
+		RespawnPlayer( packet );
+		break;
+	case TYPE_ReturnToLobby:
+		{
+			delete m_currentWorld;
+			m_currentWorld = nullptr;
+			m_localEntity = nullptr;
+			m_myClientID = ID_None;
+
+			m_currentState = STATE_InLobby;
+		}
 		break;
 	default:
 		break;
@@ -246,7 +272,7 @@ void GameClient::ProcessNetworkQueue()
 		}
 		else
 		{
-			printf( "Received packet from %s:%i.\n", receivedIPAddress.c_str(), receivedPort );
+			//printf( "Received packet from %s:%i.\n", receivedIPAddress.c_str(), receivedPort );
 			m_packetQueue.insert( receivedPacket );
 		}
 
@@ -326,6 +352,32 @@ void GameClient::ResetGame( const MainPacketType& resetPacket )
 }
 
 //-----------------------------------------------------------------------------------------------
+void GameClient::RespawnPlayer( const MainPacketType& respawnPacket )
+{
+	Entity* playerThatShouldBeDead = m_currentWorld->FindPlayerWithID( respawnPacket.clientID );
+	if( playerThatShouldBeDead != nullptr )
+		m_currentWorld->RemovePlayer( playerThatShouldBeDead );
+
+	printf( "Respawning player ID:%i", respawnPacket.clientID );
+
+	Entity* respawnedEntity = new Entity();
+	m_currentWorld->AddNewPlayer( respawnedEntity );
+	respawnedEntity->SetID( respawnPacket.clientID );
+	respawnedEntity->SetClientPosition( respawnPacket.data.respawn.xPosition, respawnPacket.data.respawn.yPosition );
+	respawnedEntity->SetClientVelocity( 0.f, 0.f );
+	respawnedEntity->SetClientAcceleration( 0.f, 0.f );
+	respawnedEntity->SetClientOrientation( respawnPacket.data.respawn.orientationDegrees );
+
+	respawnedEntity->SetServerPosition( respawnPacket.data.respawn.xPosition, respawnPacket.data.respawn.yPosition );
+	respawnedEntity->SetServerVelocity( 0.f, 0.f );
+	respawnedEntity->SetServerAcceleration( 0.f, 0.f );
+	respawnedEntity->SetServerOrientation( respawnPacket.data.respawn.orientationDegrees );
+
+	respawnedEntity->SetHealth( 1 );
+	respawnedEntity->SetScore( 0 );
+}
+
+//-----------------------------------------------------------------------------------------------
 void GameClient::SendEntityTouchedIt( Entity*, Entity* )
 {
 // 	MainPacketType touchPacket;
@@ -395,7 +447,7 @@ void GameClient::SendServerRoomRequestBasedOnStatus( RoomID room )
 //-----------------------------------------------------------------------------------------------
 void GameClient::SendUpdatedPositionsToServer( float deltaSeconds )
 {
-	Vector2 currentPlayerPosition;
+	FloatVector2 currentPlayerPosition;
 	MainPacketType updatePacket;
 	updatePacket.type = TYPE_GameUpdate;
 	updatePacket.number = 0;
@@ -405,13 +457,13 @@ void GameClient::SendUpdatedPositionsToServer( float deltaSeconds )
 	if( m_tankInputs[ 0 ].tankMovementMagnitude > 0.f )
 	{
 		float orientationRadians = ConvertDegreesToRadians( m_tankInputs[ 0 ].tankMovementHeading );
-		Vector2 deltaVelocity( cos( orientationRadians ), -sin( orientationRadians ) );
+		FloatVector2 deltaVelocity( cos( orientationRadians ), -sin( orientationRadians ) );
 		deltaVelocity *= m_tankInputs[ 0 ].tankMovementMagnitude * 10.f;
 
 		if( m_localEntity->IsIt() )
 			deltaVelocity *= .9f; //It player is slower than the rest.
 
-		Vector2 currentPosition = m_localEntity->GetCurrentPosition();
+		FloatVector2 currentPosition = m_localEntity->GetCurrentPosition();
 		currentPosition.x += deltaVelocity.x;
 		currentPosition.y += deltaVelocity.y;
 		updatePacket.data.updatedGame.xPosition = currentPosition.x;
@@ -425,10 +477,10 @@ void GameClient::SendUpdatedPositionsToServer( float deltaSeconds )
 	}
 	else if( m_secondsSinceLastSentUpdate > MAX_SECONDS_BETWEEN_PACKET_SENDS )
 	{
-		Vector2 currentPosition = m_localEntity->GetCurrentPosition();
+		FloatVector2 currentPosition = m_localEntity->GetCurrentPosition();
 		updatePacket.data.updatedGame.xPosition = currentPosition.x;
 		updatePacket.data.updatedGame.yPosition = currentPosition.y;
-		Vector2 currentVelocity = m_localEntity->GetCurrentVelocity();
+		FloatVector2 currentVelocity = m_localEntity->GetCurrentVelocity();
 		updatePacket.data.updatedGame.xVelocity = currentVelocity.x;
 		updatePacket.data.updatedGame.yVelocity = currentVelocity.y;
 
@@ -489,7 +541,7 @@ void GameClient::UpdateEntityFromPacket( const MainPacketType& packet )
 #pragma region Public Functions
 //-----------------------------------------------------------------------------------------------
 GameClient::GameClient( unsigned int screenWidth, unsigned int screenHeight )
-	: m_screenSize( Vector2( (float) screenWidth, (float) screenHeight ) )
+	: m_screenSize( FloatVector2( (float) screenWidth, (float) screenHeight ) )
 	, m_tankInputs( 1 )
 	, m_currentState( STATE_WaitingToJoinServer )
 	, m_currentWorld( nullptr )
@@ -633,19 +685,18 @@ void GameClient::Update( double timeSpentLastFrameSeconds )
 	}
 
 	//Resend "Guaranteed" client packets in situations when we need them.
-	static float secondsSinceLastResentPacket = 0.f;
 	static const float SECONDS_BEFORE_PACKETS_RESENT = 1.5f;
 	if( m_packetToResend != nullptr )
 	{
-		if( secondsSinceLastResentPacket > SECONDS_BEFORE_PACKETS_RESENT )
+		if( m_secondsSinceLastResentPacket > SECONDS_BEFORE_PACKETS_RESENT )
 		{
 			SendPacketToServer( *m_packetToResend );
-			secondsSinceLastResentPacket = 0.f;
+			m_secondsSinceLastResentPacket = 0.f;
 		}
-		secondsSinceLastResentPacket += deltaSeconds;
+		m_secondsSinceLastResentPacket += deltaSeconds;
 	}
 	else
-		secondsSinceLastResentPacket = 0.f;
+		m_secondsSinceLastResentPacket = 0.f;
 }
 
 //-----------------------------------------------------------------------------------------------

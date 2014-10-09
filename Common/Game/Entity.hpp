@@ -3,7 +3,7 @@
 #define INCLUDED_ENTITY_HPP
 
 #include "../Engine/Color.hpp"
-#include "../Engine/Vector2.hpp"
+#include "../Engine/Math/FloatVector2.hpp"
 
 //-----------------------------------------------------------------------------------------------
 class Entity
@@ -15,9 +15,9 @@ public:
 	virtual void Render() const;
 	virtual void Update( float deltaSeconds );
 
-	const Vector2& GetCurrentPosition() const { return m_clientPosition; }
-	const Vector2& GetCurrentVelocity() const { return m_clientVelocity; }
-	const Vector2& GetCurrentAcceleration() const { return m_clientAcceleration; }
+	const FloatVector2& GetCurrentPosition() const { return m_clientPosition; }
+	const FloatVector2& GetCurrentVelocity() const { return m_clientVelocity; }
+	const FloatVector2& GetCurrentAcceleration() const { return m_clientAcceleration; }
 	float GetCurrentOrientation() const { return m_clientOrientationDegrees; }
 
 	const Color& GetColor() const { return m_color; }
@@ -50,14 +50,14 @@ protected:
 	unsigned char m_health;
 	unsigned char m_score;
 
-	Vector2 m_clientPosition;
-	Vector2 m_clientVelocity;
-	Vector2 m_clientAcceleration;
+	FloatVector2 m_clientPosition;
+	FloatVector2 m_clientVelocity;
+	FloatVector2 m_clientAcceleration;
 	float m_clientOrientationDegrees;
 
-	Vector2 m_serverPosition;
-	Vector2 m_serverVelocity;
-	Vector2 m_serverAcceleration;
+	FloatVector2 m_serverPosition;
+	FloatVector2 m_serverVelocity;
+	FloatVector2 m_serverAcceleration;
 	float m_serverOrientationDegrees;
 };
 
