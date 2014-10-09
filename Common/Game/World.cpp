@@ -7,6 +7,22 @@
 STATIC const float World::OBJECTIVE_TOUCH_DISTANCE = 10.f;
 
 //-----------------------------------------------------------------------------------------------
+World::World()
+	: m_objective( nullptr )
+	, m_nextPlayerID( 0 )
+	, m_camera( 250.f, -75.f, 200.f )
+{
+	m_camera.SetRotation( 0.f, 45.f, 90.f );
+
+	Renderer* renderer = Renderer::GetRenderer();
+	m_floorMaterial = renderer->CreateOrGetNewMaterialComponent( L"FloorMaterial" );
+	m_floorMaterial->SetShaderProgram( ShaderProgram::CreateOrGetShaderProgram( "Data/Shaders/BasicNoTexture.vertex.330.glsl", "Data/Shaders/BasicNoTexture.fragment.330.glsl" ) );
+	m_floorMaterial->SetModelMatrixUniform( "u_modelMatrix" );
+	m_floorMaterial->SetViewMatrixUniform( "u_viewMatrix" );
+	m_floorMaterial->SetProjectionMatrixUniform( "u_projectionMatrix" );
+}
+
+//-----------------------------------------------------------------------------------------------
 //Returns player pointer if player was found; nullptr otherwise
 Entity* World::FindPlayerWithID( unsigned short targetID )
 {
@@ -107,6 +123,40 @@ bool World::PlayerIsTouchingObjective( Entity* player )
 }
 
 //-----------------------------------------------------------------------------------------------
+void World::RenderFloor() const
+{
+	std::vector< VertexColorData > m_floorVertexArray;
+	m_floorVertexArray.push_back( VertexColorData(   0.f,   0.f, -5.f, 0.4f, 0.2f, 0.f, 1.f ) );
+	m_floorVertexArray.push_back( VertexColorData(   0.f, 500.f, -5.f, 0.4f, 0.2f, 0.f, 1.f ) );
+	m_floorVertexArray.push_back( VertexColorData( 500.f,   0.f, -5.f, 0.4f, 0.2f, 0.f, 1.f ) );
+	m_floorVertexArray.push_back( VertexColorData( 500.f, 500.f, -5.f, 0.4f, 0.2f, 0.f, 1.f ) );
+
+	static const int SIZE_OF_ARRAY_STRUCTURE = sizeof( VertexColorData );
+	static const int NUMBER_OF_VERTEX_COORDINATES = 3;
+	static const int NUMBER_OF_COLOR_COORDINATES = 4;
+	static const int VERTEX_ARRAY_START = 0;
+
+	Renderer* renderer = Renderer::GetRenderer();
+	renderer->PushMatrix();
+
+	renderer->BindBufferObject( Renderer::ARRAY_BUFFER, 0 ); //Not using buffers
+
+	renderer->BindVertexArraysToAttributeLocation( Renderer::LOCATION_Vertex );
+	renderer->BindVertexArraysToAttributeLocation( Renderer::LOCATION_Color );
+	renderer->ApplyMaterialComponent( m_floorMaterial );
+
+	renderer->SetPointerToGenericArray( Renderer::LOCATION_Vertex, NUMBER_OF_VERTEX_COORDINATES, Renderer::FLOAT_TYPE, false, SIZE_OF_ARRAY_STRUCTURE, &m_floorVertexArray[0].x );
+	renderer->SetPointerToGenericArray( Renderer::LOCATION_Color, NUMBER_OF_COLOR_COORDINATES, Renderer::FLOAT_TYPE, false, SIZE_OF_ARRAY_STRUCTURE, &m_floorVertexArray[0].red );
+	renderer->RenderVertexArray( Renderer::TRIANGLE_STRIP, VERTEX_ARRAY_START, m_floorVertexArray.size() );
+
+	renderer->RemoveMaterialComponent( m_floorMaterial );
+	renderer->UnbindVertexArraysFromAttributeLocation( Renderer::LOCATION_Color );
+	renderer->UnbindVertexArraysFromAttributeLocation( Renderer::LOCATION_Vertex );
+
+	renderer->PopMatrix();
+}
+
+//-----------------------------------------------------------------------------------------------
 void World::UpdateLasers( float deltaSeconds )
 {
 	for( unsigned int i = 0; i < m_activeLasers.size(); ++i )
@@ -145,6 +195,8 @@ void World::Render() const
 
 	if( m_objective != nullptr )
 		m_objective->Render();
+
+	RenderFloor();
 
 	for( unsigned int i = 0; i < m_activeLasers.size(); ++i )
 	{

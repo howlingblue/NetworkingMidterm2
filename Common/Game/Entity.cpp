@@ -19,7 +19,6 @@ Entity::Entity()
 	, m_serverOrientationDegrees( 0 )
 	, m_color( (unsigned char)255, 0, 0, 255 )
 {
-
 	Renderer* renderer = Renderer::GetRenderer();
 	m_tankMaterial = renderer->CreateOrGetNewMaterialComponent( L"TankMaterial" );
 	m_tankMaterial->SetShaderProgram( ShaderProgram::CreateOrGetShaderProgram( "Data/Shaders/BasicNoTexture.vertex.330.glsl", "Data/Shaders/BasicNoTexture.fragment.330.glsl" ) );

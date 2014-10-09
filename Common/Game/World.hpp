@@ -8,6 +8,8 @@
 #include "Entity.hpp"
 #include "LaserBeam.hpp"
 
+struct MaterialComponent;
+
 //-----------------------------------------------------------------------------------------------
 class World
 {
@@ -31,6 +33,7 @@ public:
 	const Entity* GetObjective() { return m_objective; }
 	void HandleFireEventFromPlayer( const Entity* player );
 	bool PlayerIsTouchingObjective( Entity* player );
+	void RenderFloor() const;
 	void SetObjective( Entity* newObjective );
 	void UpdateLasers( float deltaSeconds );
 
@@ -43,18 +46,10 @@ private:
 	std::vector< LaserBeam* > m_activeLasers;
 	std::vector< Entity* > m_players;
 	unsigned char m_nextPlayerID;
+	MaterialComponent* m_floorMaterial;
 };
 
 
-
-//-----------------------------------------------------------------------------------------------
-inline World::World()
-	: m_objective( nullptr )
-	, m_nextPlayerID( 0 )
-	, m_camera( 300.f, 0.f, 200.f )
-{
-	m_camera.SetRotation( 0.f, 45.f, 90.f );
-}
 
 //-----------------------------------------------------------------------------------------------
 inline World::~World()
