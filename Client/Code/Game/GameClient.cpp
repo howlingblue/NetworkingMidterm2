@@ -697,6 +697,8 @@ void GameClient::Update( double timeSpentLastFrameSeconds )
 	}
 	else
 		m_secondsSinceLastResentPacket = 0.f;
+
+	m_keyboard->Update();
 }
 
 //-----------------------------------------------------------------------------------------------
