@@ -17,7 +17,7 @@ Entity::Entity()
 	, m_isIt( false )
 	, m_clientOrientationDegrees( 0 )
 	, m_serverOrientationDegrees( 0 )
-	, m_color( (unsigned char)0, 0, 0, 255 )
+	, m_color( (unsigned char)255, 0, 0, 255 )
 {
 
 	Renderer* renderer = Renderer::GetRenderer();
@@ -33,43 +33,39 @@ void Entity::Render() const
 {
 	float halfWidth = 5.f, halfHeight = 5.f, halfDepth = 0.f;
 
-// 	glPushMatrix();
-// 	glTranslatef( m_clientPosition.x, m_clientPosition.y, 0.f );
-// 	glRotatef( m_clientOrientationDegrees, 0.f, 0.f, 1.f );
-// 
-// 	//glColor4f( (float)m_color.r / 255.f, (float)m_color.g / 255.f, (float)m_color.b / 255.f, (float)m_color.a / 255.f );
-// 	if( m_isIt )
-// 		glColor4f( 1.f, 0.f, 0.f, 1.f );
-// 	else
-// 		glColor4f( 1.f, 1.f, 1.f, 1.f );
-// 
-// 	glBegin( GL_QUADS );
-// 	{
-// 		glVertex2f( -halfWidth, halfHeight );
-// 		glVertex2f( halfWidth, halfHeight );
-// 		glVertex2f( halfWidth, -halfHeight );
-// 		glVertex2f( -halfWidth, -halfHeight );
-// 	}
-// 	glEnd();
-// 	glPopMatrix();
-
-
-	//Build the line array
 	std::vector< VertexColorData > tankVertexArray;
-	tankVertexArray.push_back( VertexColorData( -halfWidth, -halfHeight, -halfDepth, 1.f, 1.f, 1.f, 1.f ) );
-	tankVertexArray.push_back( VertexColorData(  halfWidth, -halfHeight, -halfDepth, 1.f, 1.f, 1.f, 1.f ) );
-	tankVertexArray.push_back( VertexColorData( -halfWidth,  halfHeight, -halfDepth, 1.f, 1.f, 1.f, 1.f ) );
-	tankVertexArray.push_back( VertexColorData(  halfWidth,  halfHeight, -halfDepth, 1.f, 1.f, 1.f, 1.f ) );
-	tankVertexArray.push_back( VertexColorData(  halfWidth,  halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
-	tankVertexArray.push_back( VertexColorData(  halfWidth, -halfHeight, -halfDepth, 1.f, 1.f, 1.f, 1.f ) );
-	tankVertexArray.push_back( VertexColorData(  halfWidth, -halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
-	tankVertexArray.push_back( VertexColorData( -halfWidth, -halfHeight, -halfDepth, 1.f, 1.f, 1.f, 1.f ) );
-	tankVertexArray.push_back( VertexColorData( -halfWidth, -halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
-	tankVertexArray.push_back( VertexColorData( -halfWidth,  halfHeight, -halfDepth, 1.f, 1.f, 1.f, 1.f ) );
-	tankVertexArray.push_back( VertexColorData( -halfWidth,  halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
-	tankVertexArray.push_back( VertexColorData(  halfWidth,  halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
-	tankVertexArray.push_back( VertexColorData( -halfWidth, -halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
-	tankVertexArray.push_back( VertexColorData(  halfWidth, -halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
+	tankVertexArray.push_back( VertexColorData( -halfWidth, -halfHeight, -halfDepth, m_color.r / 255.f, m_color.g / 255.f, m_color.b / 255.f, 1.f ) );
+	tankVertexArray.push_back( VertexColorData(  halfWidth, -halfHeight, -halfDepth, m_color.r / 255.f, m_color.g / 255.f, m_color.b / 255.f, 1.f ) );
+	tankVertexArray.push_back( VertexColorData( -halfWidth,  halfHeight, -halfDepth, m_color.r / 255.f, m_color.g / 255.f, m_color.b / 255.f, 1.f ) );
+	tankVertexArray.push_back( VertexColorData(  halfWidth,  halfHeight, -halfDepth, m_color.r / 255.f, m_color.g / 255.f, m_color.b / 255.f, 1.f ) );
+	tankVertexArray.push_back( VertexColorData(  halfWidth,  halfHeight,  halfDepth, m_color.r / 255.f, m_color.g / 255.f, m_color.b / 255.f, 1.f ) );
+	tankVertexArray.push_back( VertexColorData(  halfWidth, -halfHeight, -halfDepth, m_color.r / 255.f, m_color.g / 255.f, m_color.b / 255.f, 1.f ) );
+	tankVertexArray.push_back( VertexColorData(  halfWidth, -halfHeight,  halfDepth, m_color.r / 255.f, m_color.g / 255.f, m_color.b / 255.f, 1.f ) );
+	tankVertexArray.push_back( VertexColorData( -halfWidth, -halfHeight, -halfDepth, m_color.r / 255.f, m_color.g / 255.f, m_color.b / 255.f, 1.f ) );
+	tankVertexArray.push_back( VertexColorData( -halfWidth, -halfHeight,  halfDepth, m_color.r / 255.f, m_color.g / 255.f, m_color.b / 255.f, 1.f ) );
+	tankVertexArray.push_back( VertexColorData( -halfWidth,  halfHeight, -halfDepth, m_color.r / 255.f, m_color.g / 255.f, m_color.b / 255.f, 1.f ) );
+	tankVertexArray.push_back( VertexColorData( -halfWidth,  halfHeight,  halfDepth, m_color.r / 255.f, m_color.g / 255.f, m_color.b / 255.f, 1.f ) );
+	tankVertexArray.push_back( VertexColorData(  halfWidth,  halfHeight,  halfDepth, m_color.r / 255.f, m_color.g / 255.f, m_color.b / 255.f, 1.f ) );
+	tankVertexArray.push_back( VertexColorData( -halfWidth, -halfHeight,  halfDepth, m_color.r / 255.f, m_color.g / 255.f, m_color.b / 255.f, 1.f ) );
+	tankVertexArray.push_back( VertexColorData(  halfWidth, -halfHeight,  halfDepth, m_color.r / 255.f, m_color.g / 255.f, m_color.b / 255.f, 1.f ) );
+
+	halfHeight = 2.f;
+	halfDepth = 0.f;
+	std::vector< VertexColorData > turretVertexArray;
+	turretVertexArray.push_back( VertexColorData(  0.f, -halfHeight, -halfDepth, 1.f, 1.f, 1.f, 1.f ) );
+	turretVertexArray.push_back( VertexColorData(  8.f, -halfHeight, -halfDepth, 1.f, 1.f, 1.f, 1.f ) );
+	turretVertexArray.push_back( VertexColorData(  0.f,  halfHeight, -halfDepth, 1.f, 1.f, 1.f, 1.f ) );
+	turretVertexArray.push_back( VertexColorData(  8.f,  halfHeight, -halfDepth, 1.f, 1.f, 1.f, 1.f ) );
+	turretVertexArray.push_back( VertexColorData(  8.f,  halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
+	turretVertexArray.push_back( VertexColorData(  8.f, -halfHeight, -halfDepth, 1.f, 1.f, 1.f, 1.f ) );
+	turretVertexArray.push_back( VertexColorData(  8.f, -halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
+	turretVertexArray.push_back( VertexColorData(  0.f, -halfHeight, -halfDepth, 1.f, 1.f, 1.f, 1.f ) );
+	turretVertexArray.push_back( VertexColorData(  0.f, -halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
+	turretVertexArray.push_back( VertexColorData(  0.f,  halfHeight, -halfDepth, 1.f, 1.f, 1.f, 1.f ) );
+	turretVertexArray.push_back( VertexColorData(  0.f,  halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
+	turretVertexArray.push_back( VertexColorData(  8.f,  halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
+	turretVertexArray.push_back( VertexColorData(  0.f, -halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
+	turretVertexArray.push_back( VertexColorData(  8.f, -halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
 
 
 	Renderer* renderer = Renderer::GetRenderer();
@@ -85,7 +81,7 @@ void Entity::Render() const
 	static const int VERTEX_ARRAY_START = 0;
 
 	renderer->TranslateWorld( FloatVector3( m_clientPosition.x, m_clientPosition.y, 0.f ) );
-	renderer->RotateWorldAboutAxisDegrees( FloatVector3( 0.f, 0.f, 1.f ), m_clientOrientationDegrees );
+	renderer->RotateWorldAboutAxisDegrees( FloatVector3( 0.f, 0.f, 1.f ), -m_clientOrientationDegrees );
 
 	renderer->BindBufferObject( Renderer::ARRAY_BUFFER, 0 ); //Not using buffers
 
@@ -96,6 +92,10 @@ void Entity::Render() const
 	renderer->SetPointerToGenericArray( Renderer::LOCATION_Vertex, NUMBER_OF_VERTEX_COORDINATES, Renderer::FLOAT_TYPE, false, SIZE_OF_ARRAY_STRUCTURE, &tankVertexArray[0].x );
 	renderer->SetPointerToGenericArray( Renderer::LOCATION_Color, NUMBER_OF_COLOR_COORDINATES, Renderer::FLOAT_TYPE, false, SIZE_OF_ARRAY_STRUCTURE, &tankVertexArray[0].red );
 	renderer->RenderVertexArray( Renderer::TRIANGLE_STRIP, VERTEX_ARRAY_START, tankVertexArray.size() );
+
+	renderer->SetPointerToGenericArray( Renderer::LOCATION_Vertex, NUMBER_OF_VERTEX_COORDINATES, Renderer::FLOAT_TYPE, false, SIZE_OF_ARRAY_STRUCTURE, &turretVertexArray[0].x );
+	renderer->SetPointerToGenericArray( Renderer::LOCATION_Color, NUMBER_OF_COLOR_COORDINATES, Renderer::FLOAT_TYPE, false, SIZE_OF_ARRAY_STRUCTURE, &turretVertexArray[0].red );
+	renderer->RenderVertexArray( Renderer::TRIANGLE_STRIP, VERTEX_ARRAY_START, turretVertexArray.size() );
 
 	renderer->RemoveMaterialComponent( m_tankMaterial );
 	renderer->UnbindVertexArraysFromAttributeLocation( Renderer::LOCATION_Color );
