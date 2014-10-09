@@ -5,6 +5,8 @@
 #include "../Engine/Color.hpp"
 #include "../Engine/Math/FloatVector2.hpp"
 
+struct MaterialComponent;
+
 //-----------------------------------------------------------------------------------------------
 class Entity
 {
@@ -59,18 +61,11 @@ protected:
 	FloatVector2 m_serverVelocity;
 	FloatVector2 m_serverAcceleration;
 	float m_serverOrientationDegrees;
+
+	MaterialComponent* m_tankMaterial;
 };
 
 
-
-//-----------------------------------------------------------------------------------------------
-inline Entity::Entity()
-	: m_playerID( 0 )
-	, m_isIt( false )
-	, m_clientOrientationDegrees( 0 )
-	, m_serverOrientationDegrees( 0 )
-	, m_color( (unsigned char)0, 0, 0, 255 )
-{ }
 
 //-----------------------------------------------------------------------------------------------
 inline void Entity::SetClientPosition( float x, float y )

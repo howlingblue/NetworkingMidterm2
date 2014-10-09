@@ -7,6 +7,8 @@
 #include "../Engine/Math/FloatVector2.hpp"
 #include "Entity.hpp"
 
+struct MaterialComponent;
+
 //-----------------------------------------------------------------------------------------------
 class LaserBeam : public Entity
 {
@@ -31,18 +33,7 @@ private:
 	const Entity* m_firer;
 	FloatVector2 m_fireAngleAsVector;
 	float m_secondsSinceFired;
+	MaterialComponent* m_laserMaterial;
 };
-
-
-
-//-----------------------------------------------------------------------------------------------
-inline LaserBeam::LaserBeam( const Entity* firer )
-	: m_firer( firer )
-	, m_fireAngleAsVector( ConvertAngleToUnitCirclePosition( ConvertDegreesToRadians( firer->GetCurrentOrientation() ) ) )
-	, m_secondsSinceFired( 0.f )
-{
-	m_clientPosition = firer->GetCurrentPosition();
-	m_serverPosition = m_clientPosition;
-}
 
 #endif //INCLUDED_LASER_BEAM_HPP
