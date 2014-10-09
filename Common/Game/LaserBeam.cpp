@@ -34,21 +34,16 @@ LaserBeam::LaserBeam( const Entity* firer )
 void LaserBeam::Render() const
 {
 	std::vector< VertexColorData > m_laserVertexArray;
-	m_laserVertexArray.push_back( VertexColorData( m_clientPosition.x, m_clientPosition.y, 0.f, 1.f, 0.f, 0.3f, 1.f ) );
-	m_laserVertexArray.push_back( VertexColorData( m_clientPosition.x + 600.f * m_fireAngleAsVector.x, m_clientPosition.y + 600.f * m_fireAngleAsVector.y, 0.f, 0.f, 0.f, 1.f, 1.f ) );
-
-
-	Renderer* renderer = Renderer::GetRenderer();
-	renderer->PushMatrix();
-	renderer->SetOrthographicProjection( 0.0, 600.0, 0.0, 600.0, 0.0, 1.0 );
-	renderer->DisableFeature( Renderer::DEPTH_TESTING );
-	renderer->DisableDepthBufferWriting();
-	renderer->SetLineWidth( 2.f );
+	m_laserVertexArray.push_back( VertexColorData( m_clientPosition.x, m_clientPosition.y, 0.f, 1.f, 0.f, 0.3f, ( LIFETIME_SECONDS - 1.f - m_secondsSinceFired ) / LIFETIME_SECONDS ) );
+	m_laserVertexArray.push_back( VertexColorData( m_clientPosition.x + 600.f * m_fireAngleAsVector.x, m_clientPosition.y + 600.f * m_fireAngleAsVector.y, 0.f, 0.f, 0.f, 1.f, ( LIFETIME_SECONDS - m_secondsSinceFired ) / LIFETIME_SECONDS ) );
 
 	static const int SIZE_OF_ARRAY_STRUCTURE = sizeof( VertexColorData );
 	static const int NUMBER_OF_VERTEX_COORDINATES = 3;
 	static const int NUMBER_OF_COLOR_COORDINATES = 4;
 	static const int VERTEX_ARRAY_START = 0;
+
+	Renderer* renderer = Renderer::GetRenderer();
+	renderer->PushMatrix();
 
 	renderer->BindBufferObject( Renderer::ARRAY_BUFFER, 0 ); //Not using buffers
 
@@ -64,8 +59,6 @@ void LaserBeam::Render() const
 	renderer->UnbindVertexArraysFromAttributeLocation( Renderer::LOCATION_Color );
 	renderer->UnbindVertexArraysFromAttributeLocation( Renderer::LOCATION_Vertex );
 
-	renderer->EnableDepthBufferWriting();
-	renderer->EnableFeature( Renderer::DEPTH_TESTING );
 	renderer->PopMatrix();
 
 

@@ -1,5 +1,6 @@
 #include "World.hpp"
 
+#include "../Engine/Graphics/Renderer.hpp"
 #include "../Engine/EngineCommon.hpp"
 
 //-----------------------------------------------------------------------------------------------
@@ -126,6 +127,12 @@ void World::UpdateLasers( float deltaSeconds )
 //-----------------------------------------------------------------------------------------------
 void World::Render() const
 {
+	Renderer* renderer = Renderer::GetRenderer();
+	renderer->SetOrthographicProjection( 0.0, 600.0, 0.0, 600.0, 0.0, 1.0 );
+	renderer->DisableFeature( Renderer::DEPTH_TESTING );
+	renderer->DisableDepthBufferWriting();
+	renderer->SetLineWidth( 2.f );
+
 	if( m_objective != nullptr )
 		m_objective->Render();
 
@@ -138,6 +145,9 @@ void World::Render() const
 	{
 		m_players[ i ]->Render();
 	}
+
+	renderer->EnableDepthBufferWriting();
+	renderer->EnableFeature( Renderer::DEPTH_TESTING );
 }
 
 //-----------------------------------------------------------------------------------------------

@@ -67,19 +67,14 @@ void Entity::Render() const
 	turretVertexArray.push_back( VertexColorData(  0.f, -halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
 	turretVertexArray.push_back( VertexColorData(  8.f, -halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
 
-
-	Renderer* renderer = Renderer::GetRenderer();
-	renderer->PushMatrix();
-	renderer->SetOrthographicProjection( 0.0, 600.0, 0.0, 600.0, 0.0, 1.0 );
-	renderer->DisableFeature( Renderer::DEPTH_TESTING );
-	renderer->DisableDepthBufferWriting();
-	renderer->SetLineWidth( 2.f );
-
 	static const int SIZE_OF_ARRAY_STRUCTURE = sizeof( VertexColorData );
 	static const int NUMBER_OF_VERTEX_COORDINATES = 3;
 	static const int NUMBER_OF_COLOR_COORDINATES = 4;
 	static const int VERTEX_ARRAY_START = 0;
 
+	Renderer* renderer = Renderer::GetRenderer();
+
+	renderer->PushMatrix();
 	renderer->TranslateWorld( FloatVector3( m_clientPosition.x, m_clientPosition.y, 0.f ) );
 	renderer->RotateWorldAboutAxisDegrees( FloatVector3( 0.f, 0.f, 1.f ), -m_clientOrientationDegrees );
 
@@ -101,8 +96,6 @@ void Entity::Render() const
 	renderer->UnbindVertexArraysFromAttributeLocation( Renderer::LOCATION_Color );
 	renderer->UnbindVertexArraysFromAttributeLocation( Renderer::LOCATION_Vertex );
 
-	renderer->EnableDepthBufferWriting();
-	renderer->EnableFeature( Renderer::DEPTH_TESTING );
 	renderer->PopMatrix();
 }
 
