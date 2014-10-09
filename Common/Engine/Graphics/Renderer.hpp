@@ -28,8 +28,6 @@ ABSTRACT STATIC class Renderer
 
 
 	virtual void Initialize() = 0;
-	VertexColorTextureData2D* BuildGlyphArrayFromString( unsigned int& out_totalGlyphVertices, const std::string& textString, const BitmapFont& font, 
-														 float cellHeight, const FloatVector2& textStartLowerLeftCorner, const Color& textColor );
 
 protected:
 	const ShaderProgram* s_activeShaderProgram;
@@ -146,6 +144,10 @@ public:
 	//Instantiation
 	static void CreateRenderer();
 	static Renderer* GetRenderer();
+
+	//FIX: do something else with this
+	VertexColorTextureData2D* BuildGlyphArrayFromString( unsigned int& out_totalGlyphVertices, const std::string& textString, const BitmapFont& font, 
+														 float cellHeight, const FloatVector2& textStartLowerLeftCorner, const Color& textColor );
 
 	//Feature Enabling
 	virtual void EnableArrayType( ArrayType type ) const = 0;

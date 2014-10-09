@@ -2,8 +2,9 @@
 #include <windows.h>
 #include <gl/gl.h>
 #include "GameClient.hpp"
-#include "../../../Common/Engine/EngineCommon.hpp"
+#include "../../../Common/Engine/Graphics/Renderer.hpp"
 #include "../../../Common/Engine/Math/EngineMath.hpp"
+#include "../../../Common/Engine/EngineCommon.hpp"
 #include "../../../Common/Engine/TimeInterface.hpp"
 
 //-----------------------------------------------------------------------------------------------
@@ -594,18 +595,91 @@ void GameClient::Start( const std::string& clientPort, const std::string& server
 
 	m_serverAddress = serverAddress;
 	m_serverPort = ( unsigned short )strtoul( serverPort.c_str(), 0, 0 );
+
+	static const std::string fontDefinitionLocation = "Data/Font/MainFont_EN.FontDef.xml";
+	static const std::string fontImageLocation = "Data/Font/MainFont_EN_00.png";
+	m_font = BitmapFont( fontDefinitionLocation, &fontImageLocation, 1 );
+
+	Renderer* renderer = Renderer::GetRenderer();
+	m_textMaterial = renderer->CreateOrGetNewMaterialComponent( L"TextMaterial" );
+	m_textMaterial->SetShaderProgram( ShaderProgram::CreateOrGetShaderProgram( "Data/Shaders/BasicNoTexture.vertex.330.glsl", "Data/Shaders/BasicNoTexture.fragment.330.glsl" ) );
+	m_textMaterial->SetModelMatrixUniform( "u_modelMatrix" );
+	m_textMaterial->SetViewMatrixUniform( "u_viewMatrix" );
+	m_textMaterial->SetProjectionMatrixUniform( "u_projectionMatrix" );
+
+	//m_textMaterial->SetTextureUniform( "u_diffuseMap", 0, m_font.GetTextureSheet( 0 ) );
 }
 
 //-----------------------------------------------------------------------------------------------
 void GameClient::Render() const
 {
- 	glPushMatrix();
-	glOrtho( 0.f, m_screenSize.x, 0.f, m_screenSize.y, 0.f, 1.f );
+	Renderer* renderer = Renderer::GetRenderer();
+
+	renderer->ClearColorBuffer();
+	renderer->ClearDepthBuffer();
+
+	renderer->EnableFeature( Renderer::DEPTH_TESTING );
 
 	if( m_currentWorld != nullptr )
 		m_currentWorld->Render();
 
- 	glPopMatrix();
+
+	//renderer->EnableFeature( Renderer::COLOR_BLENDING );
+	//renderer->SetAlphaBlendingFunction( Renderer::SOURCE_ALPHA, Renderer::ONE_MINUS_SOURCE_ALPHA );
+
+	renderer->DisableFeature( Renderer::DEPTH_TESTING );
+	renderer->DisableDepthBufferWriting();
+
+	renderer->SetViewMatrixToIdentity();
+	renderer->SetOrthographicProjection( 0.0, 500.0, 0.0, 500.0, 0.0, 1.0 );
+
+	switch( m_currentState )
+	{
+	case STATE_WaitingToJoinServer:
+		{
+			unsigned int numberOfTextVertices;
+			VertexColorTextureData2D* textVertexArray;
+
+			Renderer* renderer = Renderer::GetRenderer();
+			textVertexArray = renderer->BuildGlyphArrayFromString( numberOfTextVertices, "Waiting to join server...", m_font, 45.f, FloatVector2( 0.f, 0.f ), Color( 1.f, 1.f, 1.f, 1.f ) );
+
+			static const int SIZE_OF_ARRAY_STRUCTURE = sizeof( VertexColorTextureData2D );
+			static const int NUMBER_OF_VERTEX_COORDINATES = 3;
+			static const int NUMBER_OF_COLOR_COORDINATES = 4;
+			static const int VERTEX_ARRAY_START = 0;
+
+			renderer->PushMatrix();
+
+			renderer->BindBufferObject( Renderer::ARRAY_BUFFER, 0 ); //Not using buffers
+
+			renderer->BindVertexArraysToAttributeLocation( Renderer::LOCATION_Vertex );
+			renderer->BindVertexArraysToAttributeLocation( Renderer::LOCATION_Color );
+			//renderer->BindVertexArraysToAttributeLocation( Renderer::LOCATION_TextureUV );
+			renderer->ApplyMaterialComponent( m_textMaterial );
+
+			renderer->SetPointerToGenericArray( Renderer::LOCATION_Vertex, NUMBER_OF_VERTEX_COORDINATES, Renderer::FLOAT_TYPE, false, SIZE_OF_ARRAY_STRUCTURE, &textVertexArray[0].x );
+			renderer->SetPointerToGenericArray( Renderer::LOCATION_Color, NUMBER_OF_COLOR_COORDINATES, Renderer::FLOAT_TYPE, false, SIZE_OF_ARRAY_STRUCTURE, &textVertexArray[0].red );
+			//renderer->SetPointerToGenericArray( Renderer::LOCATION_TextureUV, 2, Renderer::FLOAT_TYPE, false, SIZE_OF_ARRAY_STRUCTURE, &textVertexArray[0].u);
+			renderer->RenderVertexArray( Renderer::TRIANGLE_STRIP, VERTEX_ARRAY_START, numberOfTextVertices );
+
+			renderer->RemoveMaterialComponent( m_textMaterial );
+			//renderer->UnbindVertexArraysFromAttributeLocation( Renderer::LOCATION_TextureUV );
+			renderer->UnbindVertexArraysFromAttributeLocation( Renderer::LOCATION_Color );
+			renderer->UnbindVertexArraysFromAttributeLocation( Renderer::LOCATION_Vertex );
+
+			renderer->PopMatrix();
+			delete textVertexArray;
+		}
+		break;
+	case STATE_InLobby:
+		renderer->Render2DText( "IN LOBBY", m_font, 50.f, FloatVector2( 0.f, 0.f ) );
+		break;
+	default:
+		break;
+	}
+
+	renderer->EnableDepthBufferWriting();
+	renderer->EnableFeature( Renderer::DEPTH_TESTING );
 }
 
 //-----------------------------------------------------------------------------------------------

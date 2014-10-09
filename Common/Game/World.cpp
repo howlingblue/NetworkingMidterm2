@@ -179,16 +179,7 @@ void World::Render() const
 {
 	Renderer* renderer = Renderer::GetRenderer();
 
-	//renderer->EnableFeature( Renderer::COLOR_BLENDING );
-	//renderer->SetAlphaBlendingFunction( Renderer::SOURCE_ALPHA, Renderer::ONE_MINUS_SOURCE_ALPHA );
-	renderer->EnableFeature( Renderer::DEPTH_TESTING );
-
-	renderer->ClearColorBuffer();
-	renderer->ClearDepthBuffer();
-
 	renderer->SetPerpectiveProjection( 90.f, 1.f, 0.1f, 1000.f );
-	//renderer->DisableFeature( Renderer::DEPTH_TESTING );
-	//renderer->DisableDepthBufferWriting();
 	renderer->SetLineWidth( 2.f );
 
 	m_camera.ViewWorldThrough();
@@ -207,9 +198,6 @@ void World::Render() const
 	{
 		m_players[ i ]->Render();
 	}
-
-	//renderer->EnableDepthBufferWriting();
-	//renderer->EnableFeature( Renderer::DEPTH_TESTING );
 }
 
 //-----------------------------------------------------------------------------------------------

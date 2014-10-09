@@ -5,6 +5,7 @@
 #include <map>
 #include <set>
 #include <vector>
+#include "../../../Common/Engine/Font/BitmapFont.hpp"
 #include "../../../Common/Engine/Input/Keyboard.hpp"
 #include "../../../Common/Engine/Input/Xbox.hpp"
 #include "../../../Common/Engine/Math/FloatVector2.hpp"
@@ -15,6 +16,7 @@
 #include "../../../Common/Game/World.hpp"
 #include "TankControlWrapper.h"
 
+struct MaterialComponent;
 typedef FinalPacket MainPacketType;
 
 //-----------------------------------------------------------------------------------------------
@@ -38,6 +40,9 @@ class GameClient
 	Keyboard*							m_keyboard;
 	std::vector< Xbox::Controller >		m_controllers;
 	std::vector< TankControlWrapper >	m_tankInputs;
+
+	BitmapFont m_font;
+	MaterialComponent* m_textMaterial;
 
 	std::string				m_serverAddress;
 	unsigned short			m_serverPort;

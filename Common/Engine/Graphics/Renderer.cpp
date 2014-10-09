@@ -166,17 +166,15 @@ void Renderer::Render2DText( const std::string& textString, const BitmapFont& fo
 
 
 	const ShaderProgram* activeShader = GetActiveShaderProgram();
-	unsigned int shaderTextureToggleID = s_renderer->GetUniformVariableLocation( activeShader, "u_texturesEnabled" );
-	s_renderer->SetUniformVariable( shaderTextureToggleID, 0 );
+	//unsigned int shaderMapID = s_renderer->GetUniformVariableLocation( activeShader, "u_diffuseMap" );
+	//s_renderer->SetUniformVariable( shaderMapID, 0 );
 
 	RenderTextBackground( s_renderer, backgroundQuad, NUMBER_OF_BACKGROUND_QUAD_VERTICES );
-
-	s_renderer->SetUniformVariable( shaderTextureToggleID, 1 );
 
 
 	s_renderer->EnableArrayType( Renderer::TEXTURE_COORD_ARRAYS );
 
-	s_renderer->BindTexture( Renderer::TEXTURES_2D, font.GetTextureSheet( 0 ) );
+	//s_renderer->BindTexture( Renderer::TEXTURES_2D, font.GetTextureSheet( 0 ) );
 
 	float shadowOffset = .05f * cellHeight;
 	s_renderer->TranslateWorld( FloatVector3( shadowOffset, -shadowOffset, 0.f ) );
