@@ -4,6 +4,7 @@
 
 #include <utility>
 #include <vector>
+#include "../Engine/Camera.hpp"
 #include "Entity.hpp"
 #include "LaserBeam.hpp"
 
@@ -37,6 +38,7 @@ public:
 	void Update( float deltaSeconds );
 
 private:
+	Camera m_camera;
 	Entity* m_objective;
 	std::vector< LaserBeam* > m_activeLasers;
 	std::vector< Entity* > m_players;
@@ -49,7 +51,9 @@ private:
 inline World::World()
 	: m_objective( nullptr )
 	, m_nextPlayerID( 0 )
+	, m_camera( 300.f, 0.f, 200.f )
 {
+	m_camera.SetRotation( 0.f, 45.f, 90.f );
 }
 
 //-----------------------------------------------------------------------------------------------

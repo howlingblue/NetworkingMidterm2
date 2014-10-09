@@ -31,7 +31,7 @@ Entity::Entity()
 //-----------------------------------------------------------------------------------------------
 void Entity::Render() const
 {
-	float halfWidth = 5.f, halfHeight = 5.f, halfDepth = 0.f;
+	float halfWidth = 5.f, halfHeight = 5.f, halfDepth = 5.f;
 
 	std::vector< VertexColorData > tankVertexArray;
 	tankVertexArray.push_back( VertexColorData( -halfWidth, -halfHeight, -halfDepth, m_color.r / 255.f, m_color.g / 255.f, m_color.b / 255.f, 1.f ) );
@@ -50,22 +50,22 @@ void Entity::Render() const
 	tankVertexArray.push_back( VertexColorData(  halfWidth, -halfHeight,  halfDepth, m_color.r / 255.f, m_color.g / 255.f, m_color.b / 255.f, 1.f ) );
 
 	halfHeight = 2.f;
-	halfDepth = 0.f;
+	halfDepth = 2.f;
 	std::vector< VertexColorData > turretVertexArray;
 	turretVertexArray.push_back( VertexColorData(  0.f, -halfHeight, -halfDepth, 1.f, 1.f, 1.f, 1.f ) );
-	turretVertexArray.push_back( VertexColorData(  8.f, -halfHeight, -halfDepth, 1.f, 1.f, 1.f, 1.f ) );
+	turretVertexArray.push_back( VertexColorData( 12.f, -halfHeight, -halfDepth, 1.f, 1.f, 1.f, 1.f ) );
 	turretVertexArray.push_back( VertexColorData(  0.f,  halfHeight, -halfDepth, 1.f, 1.f, 1.f, 1.f ) );
-	turretVertexArray.push_back( VertexColorData(  8.f,  halfHeight, -halfDepth, 1.f, 1.f, 1.f, 1.f ) );
-	turretVertexArray.push_back( VertexColorData(  8.f,  halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
-	turretVertexArray.push_back( VertexColorData(  8.f, -halfHeight, -halfDepth, 1.f, 1.f, 1.f, 1.f ) );
-	turretVertexArray.push_back( VertexColorData(  8.f, -halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
+	turretVertexArray.push_back( VertexColorData( 12.f,  halfHeight, -halfDepth, 1.f, 1.f, 1.f, 1.f ) );
+	turretVertexArray.push_back( VertexColorData( 12.f,  halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
+	turretVertexArray.push_back( VertexColorData( 12.f, -halfHeight, -halfDepth, 1.f, 1.f, 1.f, 1.f ) );
+	turretVertexArray.push_back( VertexColorData( 12.f, -halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
 	turretVertexArray.push_back( VertexColorData(  0.f, -halfHeight, -halfDepth, 1.f, 1.f, 1.f, 1.f ) );
 	turretVertexArray.push_back( VertexColorData(  0.f, -halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
 	turretVertexArray.push_back( VertexColorData(  0.f,  halfHeight, -halfDepth, 1.f, 1.f, 1.f, 1.f ) );
 	turretVertexArray.push_back( VertexColorData(  0.f,  halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
-	turretVertexArray.push_back( VertexColorData(  8.f,  halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
+	turretVertexArray.push_back( VertexColorData( 12.f,  halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
 	turretVertexArray.push_back( VertexColorData(  0.f, -halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
-	turretVertexArray.push_back( VertexColorData(  8.f, -halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
+	turretVertexArray.push_back( VertexColorData( 12.f, -halfHeight,  halfDepth, 1.f, 1.f, 1.f, 1.f ) );
 
 	static const int SIZE_OF_ARRAY_STRUCTURE = sizeof( VertexColorData );
 	static const int NUMBER_OF_VERTEX_COORDINATES = 3;

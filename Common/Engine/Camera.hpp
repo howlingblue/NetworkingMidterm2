@@ -60,6 +60,13 @@ public:
 	void RotatePitchBy( float magnitudeNegOneToOne, float deltaSeconds );
 	void RotateRollBy( float magnitudeNegOneToOne, float deltaSeconds );
 
+	void SetRotation( float roll, float pitch, float yaw ) 
+	{ 
+		m_heading.rollDegreesAboutX = roll;
+		m_heading.pitchDegreesAboutY = pitch;
+		m_heading.yawDegreesAboutZ = yaw; 
+	}
+
 	bool CanSeeObject( FloatVector3 position, float radius ) const;
 	void ViewWorldThrough() const;
 };

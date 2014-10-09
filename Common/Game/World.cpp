@@ -128,10 +128,20 @@ void World::UpdateLasers( float deltaSeconds )
 void World::Render() const
 {
 	Renderer* renderer = Renderer::GetRenderer();
-	renderer->SetOrthographicProjection( 0.0, 600.0, 0.0, 600.0, 0.0, 1.0 );
-	renderer->DisableFeature( Renderer::DEPTH_TESTING );
-	renderer->DisableDepthBufferWriting();
+
+	//renderer->EnableFeature( Renderer::COLOR_BLENDING );
+	//renderer->SetAlphaBlendingFunction( Renderer::SOURCE_ALPHA, Renderer::ONE_MINUS_SOURCE_ALPHA );
+	renderer->EnableFeature( Renderer::DEPTH_TESTING );
+
+	renderer->ClearColorBuffer();
+	renderer->ClearDepthBuffer();
+
+	renderer->SetPerpectiveProjection( 90.f, 1.f, 0.1f, 1000.f );
+	//renderer->DisableFeature( Renderer::DEPTH_TESTING );
+	//renderer->DisableDepthBufferWriting();
 	renderer->SetLineWidth( 2.f );
+
+	m_camera.ViewWorldThrough();
 
 	if( m_objective != nullptr )
 		m_objective->Render();
@@ -146,8 +156,8 @@ void World::Render() const
 		m_players[ i ]->Render();
 	}
 
-	renderer->EnableDepthBufferWriting();
-	renderer->EnableFeature( Renderer::DEPTH_TESTING );
+	//renderer->EnableDepthBufferWriting();
+	//renderer->EnableFeature( Renderer::DEPTH_TESTING );
 }
 
 //-----------------------------------------------------------------------------------------------

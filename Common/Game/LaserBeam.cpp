@@ -11,7 +11,7 @@
 
 //-----------------------------------------------------------------------------------------------
 STATIC const float LaserBeam::DAMAGING_LENGTH_SECONDS = 0.2f;
-STATIC const float LaserBeam::LIFETIME_SECONDS = 3.f;
+STATIC const float LaserBeam::LIFETIME_SECONDS = 2.5f;
 
 //-----------------------------------------------------------------------------------------------
 LaserBeam::LaserBeam( const Entity* firer )
