@@ -53,9 +53,9 @@ void GameClient::HandleInput( float deltaSeconds )
 		|| m_keyboard->KeyIsPressedOrHeld( Keyboard::S ) || m_keyboard->KeyIsPressedOrHeld( Keyboard::A ) ) 
 	{
 		firstWrapper.tankMovementMagnitude = 1.0f;
-		firstWrapper.tankMovementHeading = TransformKeyInputIntoAngle( m_keyboard->KeyIsPressedOrHeld( Keyboard::W ), 
+		firstWrapper.tankMovementHeading = TransformKeyInputIntoAngle( m_keyboard->KeyIsPressedOrHeld( Keyboard::S ), 
 																	   m_keyboard->KeyIsPressedOrHeld( Keyboard::D ),
-																	   m_keyboard->KeyIsPressedOrHeld( Keyboard::S ),
+																	   m_keyboard->KeyIsPressedOrHeld( Keyboard::W ),
 																	   m_keyboard->KeyIsPressedOrHeld( Keyboard::A ) );
 	}
 
@@ -63,9 +63,9 @@ void GameClient::HandleInput( float deltaSeconds )
 		|| m_keyboard->KeyIsPressedOrHeld( Keyboard::K ) || m_keyboard->KeyIsPressedOrHeld( Keyboard::J ) ) 
 	{
 		firstWrapper.turretMovementMagnitude = 1.0f;
-		firstWrapper.turretMovementHeading = TransformKeyInputIntoAngle( m_keyboard->KeyIsPressedOrHeld( Keyboard::I ), 
+		firstWrapper.turretMovementHeading = TransformKeyInputIntoAngle( m_keyboard->KeyIsPressedOrHeld( Keyboard::K ), 
 																		 m_keyboard->KeyIsPressedOrHeld( Keyboard::L ),
-																		 m_keyboard->KeyIsPressedOrHeld( Keyboard::K ),
+																		 m_keyboard->KeyIsPressedOrHeld( Keyboard::I ),
 																		 m_keyboard->KeyIsPressedOrHeld( Keyboard::J ) );
 	}
 
@@ -454,7 +454,8 @@ void GameClient::SendUpdatedPositionsToServer( float deltaSeconds )
 	FloatVector2 currentPlayerPosition;
 	MainPacketType updatePacket;
 	updatePacket.type = TYPE_GameUpdate;
-	updatePacket.number = 0;
+	updatePacket.number = m_lastSentPacketNumber;
+	++m_lastSentPacketNumber;
 	if( m_localEntity != nullptr )
 		updatePacket.clientID = m_localEntity->GetID();
 	else
@@ -599,7 +600,7 @@ void GameClient::Start( const std::string& clientPort, const std::string& server
 void GameClient::Render() const
 {
  	glPushMatrix();
-	glOrtho( 0.f, m_screenSize.x, m_screenSize.y, 0.f, 0.f, 1.f );
+	glOrtho( 0.f, m_screenSize.x, 0.f, m_screenSize.y, 0.f, 1.f );
 
 	if( m_currentWorld != nullptr )
 		m_currentWorld->Render();

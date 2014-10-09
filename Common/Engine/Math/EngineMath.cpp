@@ -16,7 +16,7 @@ bool AreAlmostEqual( float a, float b )
 //----------------------------------------------------------------------------------------------------
 FloatVector2 ConvertAngleToUnitCirclePosition( float angleRadians )
 {
-	return FloatVector2( cos( angleRadians ), sin( angleRadians ) );
+	return FloatVector2( cos( angleRadians ), -sin( angleRadians ) );
 }
 
 //----------------------------------------------------------------------------------------------------

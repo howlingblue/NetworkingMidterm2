@@ -42,6 +42,7 @@ class GameClient
 	std::string				m_serverAddress;
 	unsigned short			m_serverPort;
 	Network::UDPSocket		m_outputSocket;
+	unsigned int			m_lastSentPacketNumber;
 	unsigned int			m_lastReceivedPacketNumber;
 	unsigned int			m_lastReceivedGuaranteedPacketNumber;
 	MainPacketType*			m_packetToResend;

@@ -4,6 +4,7 @@
 #include <cassert>
 #include <crtdbg.h>
 #include "TimeInterface.hpp"
+#include "../../Common/Engine/Graphics/Renderer.hpp"
 #include "../../Common/Engine/Graphics/Texture.hpp"
 #include "../../Client/Code/Game/GameClient.hpp"
 #pragma comment( lib, "opengl32" ) // Link in the OpenGL32.lib static library
@@ -223,6 +224,10 @@ int WINAPI WinMain( HINSTANCE applicationInstanceHandle, HINSTANCE, LPSTR comman
 		CreateConsoleWindow( "Vingine Console" );
 	}
 	CreateOpenGLWindow( APP_NAME, applicationInstanceHandle );
+
+	Renderer::CreateRenderer();
+	Renderer* renderer = Renderer::GetRenderer();
+	renderer->EnableFeature( Renderer::SHAPE_RESTART_INDEXING );
 
 	g_gameClient = new GameClient( SCREEN_WIDTH, SCREEN_HEIGHT );
 	g_gameClient->Start( clientPort, serverAddress, serverPort );
