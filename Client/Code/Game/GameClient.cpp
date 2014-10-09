@@ -114,7 +114,11 @@ void GameClient::AcknowledgePacket(  const MainPacketType& packet )
 {
 	MainPacketType ackPacket;
 	ackPacket.type = TYPE_Ack;
-	ackPacket.clientID = m_localEntity->GetID();
+
+	if( m_localEntity != nullptr )
+		ackPacket.clientID = m_localEntity->GetID();
+	else
+		ackPacket.clientID = 0;
 	ackPacket.number = 0;
 	ackPacket.timestamp = packet.timestamp;
 
@@ -451,7 +455,10 @@ void GameClient::SendUpdatedPositionsToServer( float deltaSeconds )
 	MainPacketType updatePacket;
 	updatePacket.type = TYPE_GameUpdate;
 	updatePacket.number = 0;
-	updatePacket.clientID = m_localEntity->GetID();
+	if( m_localEntity != nullptr )
+		updatePacket.clientID = m_localEntity->GetID();
+	else
+		return;
 	updatePacket.timestamp = GetCurrentTimeSeconds();
 
 	if( m_tankInputs[ 0 ].tankMovementMagnitude > 0.f )
@@ -670,12 +677,12 @@ void GameClient::Update( double timeSpentLastFrameSeconds )
 				m_currentWorld->Update( deltaSeconds );
 
 			//check for touches
-			bool localPlayerTouchedFlag = m_currentWorld->PlayerIsTouchingObjective( m_localEntity );
-			if( localPlayerTouchedFlag )
-			{
-				SendEntityTouchedIt( m_localEntity, m_localEntity );
-				m_currentState = STATE_InLobby;
-			}
+// 			bool localPlayerTouchedFlag = m_currentWorld->PlayerIsTouchingObjective( m_localEntity );
+// 			if( localPlayerTouchedFlag )
+// 			{
+// 				SendEntityTouchedIt( m_localEntity, m_localEntity );
+// 				m_currentState = STATE_InLobby;
+// 			}
 
 			ClearResendingPacket();
 		}
