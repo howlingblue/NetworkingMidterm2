@@ -6,6 +6,8 @@
 #include "TimeInterface.hpp"
 #include "../../Common/Engine/Graphics/Renderer.hpp"
 #include "../../Common/Engine/Graphics/Texture.hpp"
+#include "../../Common/Engine/CommandLineManager.hpp"
+#include "../../Common/Engine/StringConversion.hpp"
 #include "../../Client/Code/Game/GameClient.hpp"
 #pragma comment( lib, "opengl32" ) // Link in the OpenGL32.lib static library
 #pragma warning( disable : 4996 ) // Ignore warning about freopen (I prefer standard C++ libraries)
@@ -21,10 +23,10 @@ HGLRC g_openGLRenderingContext = nullptr;
 const char* APP_NAME = "Square Tag";
 bool g_openConsole = true;
 
-const int SCREEN_WIDTH = 800;
-const int SCREEN_HEIGHT = 800;
-const int WINDOW_OFFSET_VERT = 50;
-const int WINDOW_OFFSET_HORZ = 50;
+unsigned int GAME_WINDOW_WIDTH = 800;
+unsigned int GAME_WINDOW_HEIGHT = 800;
+unsigned int GAME_WINDOW_SCREEN_X_POS = 50;
+unsigned int GAME_WINDOW_SCREEN_Y_POS = 50;
 
 static const double LOCKED_FRAME_RATE_SECONDS = 1.0 / 60.0;
 static GameClient* g_gameClient;
@@ -65,7 +67,7 @@ LRESULT CALLBACK WindowsMessageHandlingProcedure( HWND windowHandle, UINT wmMess
 }
 
 //-----------------------------------------------------------------------------------------------
-void CreateConsoleWindow( const char* windowTitle )
+HWND CreateConsoleWindow( const char* windowTitle )
 {
 	AllocConsole();
 	AttachConsole( GetCurrentProcessId() );
@@ -73,7 +75,8 @@ void CreateConsoleWindow( const char* windowTitle )
 	SetConsoleTitle( windowTitle );
 	HWND consoleWindow = FindWindow( nullptr, windowTitle );
 
-	SetWindowPos( consoleWindow, nullptr, 50, 850, 800, 200, SWP_NOZORDER );
+	SetWindowPos( consoleWindow, nullptr, 50, 50, 1000, 600, SWP_NOZORDER );
+	return consoleWindow;
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -98,7 +101,8 @@ void CreateOpenGLWindow( const char* windowTitle, HINSTANCE applicationInstanceH
 	HWND desktopWindowHandle = GetDesktopWindow();
 	GetClientRect( desktopWindowHandle, &desktopRect );
 
-	RECT windowRect = { WINDOW_OFFSET_HORZ, WINDOW_OFFSET_VERT, WINDOW_OFFSET_HORZ + SCREEN_WIDTH, WINDOW_OFFSET_VERT + SCREEN_HEIGHT };
+	RECT windowRect = { GAME_WINDOW_SCREEN_X_POS, GAME_WINDOW_SCREEN_Y_POS, 
+						GAME_WINDOW_SCREEN_X_POS + GAME_WINDOW_WIDTH, GAME_WINDOW_SCREEN_X_POS + GAME_WINDOW_HEIGHT };
 	AdjustWindowRectEx( &windowRect, windowStyleFlags, FALSE, windowStyleExFlags );
 
 	g_hWnd = CreateWindowEx(
@@ -205,32 +209,57 @@ void RunFrame()
 }
 
 //-----------------------------------------------------------------------------------------------
+void HandleCommandLineOptions( CommandLine::OptionList options )
+{
+	for( unsigned int i = 0; i < options.size(); ++i )
+	{
+		CommandLine::Option& option = options[ i ];
+		if( option.option == "gw" || option.option == "gamewindow" )
+		{
+			if( option.arguments.size() != 4 )
+			{
+				CommandLine::Manager::ReportCommandError( "Incorrect number of arguments to gamewindow option.\nUsage: --gamewindow <Screen X Position> <Screen Y Position> <Window Width> <Window Height>\n" );
+				return;
+			}
+			
+			GAME_WINDOW_SCREEN_X_POS = ConvertStringToUnsignedInt( option.arguments[ 0 ] );
+			GAME_WINDOW_SCREEN_Y_POS = ConvertStringToUnsignedInt( option.arguments[ 1 ] );
+			GAME_WINDOW_WIDTH = ConvertStringToUnsignedInt( option.arguments[ 2 ] );
+			GAME_WINDOW_HEIGHT = ConvertStringToUnsignedInt( option.arguments[ 3 ] );
+		}
+		else if( option.option == "help" || option.option == "h" || option.option == "?" )
+		{
+			printf( "-gw\t--gamewindow\t<ScreenXPos> <ScreenYPos> <WindowWidth> <WindowHeight>");
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------------------------
 int WINAPI WinMain( HINSTANCE applicationInstanceHandle, HINSTANCE, LPSTR commandLineString, int )
 {
-	UNUSED( commandLineString );
-	if( __argc != 4 )
-	{
-		printf( "Incorrect Number of Arguments.\n \tUsage: %s [client port] [server address] [server port] \n", __argv[ 0 ] );
-		return -1;
-	}
-	std::string clientPort( __argv[ 1 ] );
-	std::string serverAddress( __argv[ 2 ] );
-	std::string serverPort( __argv[ 3 ] );
-
 	InitializeTimer();
 
-	if( g_openConsole )
-	{
-		CreateConsoleWindow( "Vingine Console" );
-	}
+	//Console window is created first so that command line errors may be written to it
+	/*HWND consoleWindow = */CreateConsoleWindow( "Vingine Console" );
+
+	CommandLine::Manager::Create();
+
+	CommandLine::Delegate mainCommandLineDelegate;
+	mainCommandLineDelegate.Bind< &HandleCommandLineOptions >();
+	CommandLine::Manager::AddObserver( mainCommandLineDelegate );
+	CommandLine::Manager::RunCommandLine( commandLineString );
+
+	if( !g_openConsole )
+		FreeConsole();
+		
 	CreateOpenGLWindow( APP_NAME, applicationInstanceHandle );
 
 	Renderer::CreateRenderer();
 	Renderer* renderer = Renderer::GetRenderer();
 	renderer->EnableFeature( Renderer::SHAPE_RESTART_INDEXING );
 
-	g_gameClient = new GameClient( SCREEN_WIDTH, SCREEN_HEIGHT );
-	g_gameClient->Start( clientPort, serverAddress, serverPort );
+	g_gameClient = new GameClient( GAME_WINDOW_WIDTH, GAME_WINDOW_HEIGHT );
+	g_gameClient->Start( "5121", "127.0.0.1", "5000" );
 
 	while( !g_isQuitting )	
 	{

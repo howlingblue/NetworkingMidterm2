@@ -5,6 +5,7 @@
 
 //Keywords
 #define ABSTRACT
+#define SINGLETON
 #define STATIC 
 #define VIRTUAL
 
